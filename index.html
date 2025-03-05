@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中华诗词典藏</title>
+    <!-- 引入繁体转简体库 -->
+    <script src="https://cdn.jsdelivr.net/npm/opencc-js@1.0.5/dist/umd/full.js"></script>
+    <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="nav-container">
+        <div class="nav-logo">诗苑</div>
+        <div class="nav-search">
+            <input type="text" id="searchInput" placeholder="搜索诗词、作者或关键词...">
+            <button onclick="handleSearch()">搜索</button>
+        </div>
+        <div class="nav-links">
+            <a href="javascript:void(0)" onclick="showDailyRecommend()">首页</a>
+            <a href="javascript:void(0)" onclick="loadPoetryByDynasty('唐')">唐诗</a>
+            <a href="javascript:void(0)" onclick="loadPoetryByDynasty('宋')">宋词</a>
+            <a href="javascript:void(0)" onclick="loadPoetryByDynasty('元')">元曲</a>
+        </div>
+    </nav>
+
+    <!-- 主内容区 -->
+    <main>
+        <!-- 轮播图容器 -->
+        <div class="carousel-container" id="carousel"></div>
+        
+        <!-- 搜索结果容器 -->
+        <div class="search-results" id="searchResults" style="display: none;">
+            <div class="result-list" id="resultList"></div>
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </main>
+
+    <!-- 诗词详情弹窗 -->
+    <div id="poetryModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="poetryDetail"></div>
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中华诗词典藏</title>
+    <link rel="stylesheet" href="./css/style.css">
+    <!-- 引入繁简转换库 -->
+    <script src="https://cdn.jsdelivr.net/npm/opencc-js@1.0.5/dist/umd/full.min.js"></script>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="nav-container">
+        <div class="nav-logo">詩詞雅集</div>
+        <div class="nav-search">
+            <input type="text" id="searchInput" placeholder="搜索诗词、作者...">
+            <button onclick="searchPoems()">搜索</button>
+        </div>
+        <div class="nav-categories">
+            <span class="dynasty" onclick="filterByDynasty('唐')">唐诗</span>
+            <span class="dynasty" onclick="filterByDynasty('宋')">宋词</span>
+            <span class="dynasty" onclick="filterByDynasty('')">全部</span>
+        </div>
+    </nav>
+
+    <!-- 主内容区 -->
+    <main>
+        <!-- 每日推荐轮播 -->
+        <section class="daily-recommend">
+            <h2>今日推荐</h2>
+            <div id="carousel" class="carousel-container"></div>
+        </section>
+
+        <!-- 搜索结果展示 -->
+        <section id="searchResults" class="search-results"></section>
+
+        <!-- 诗词详情弹窗 -->
+        <div id="poemDetail" class="poem-detail-modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeDetail()">&times;</span>
+                <h2 id="detailTitle"></h2>
+                <p id="detailAuthor"></p>
+                <div id="detailContent"></div>
+            </div>
+        </div>
+    </main>
+
+    <script src="./js/main.js"></script>
+</body>
+</html>

@@ -384,13 +384,17 @@
     <div class="modal-overlay" id="adminModal">
         <div class="modal" style="max-width:520px">
             <div class="modal-title">管理导航</div>
-            <div style="margin-bottom:20px; display:flex; gap:10px; flex-wrap:wrap;">
-                <button class="btn btn-primary" onclick="openAddModal()">+ 添加导航项</button>
+            <div style="margin-bottom:16px; display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="btn btn-primary" onclick="openAddModal()">+ 添加</button>
+                <button class="btn btn-ghost" onclick="exportConfig()">导出配置</button>
+                <button class="btn btn-ghost" onclick="triggerImport()">导入配置</button>
                 <button class="btn btn-ghost" onclick="doLogout()">退出管理</button>
             </div>
+            <input type="file" id="importInput" accept=".json" style="display:none" onchange="importConfig(event)">
             <div id="adminList" style="display:flex;flex-direction:column;gap:8px;"></div>
-            <div style="margin-top:18px; font-size:12px; color:rgba(255,255,255,0.25);">
-                提示：将鼠标悬停在导航卡片上可进行编辑 / 删除操作
+            <div style="margin-top:18px; font-size:12px; color:rgba(255,255,255,0.25); line-height:1.6;">
+                &#9672; 在导航卡片上悬停可直接编辑 / 删除<br>
+                &#9672; 修改后点击「导出配置」下载文件，替换 <code>data/nav.json</code> 并提交 Git 即可同步到所有人
             </div>
             <div class="form-actions">
                 <button class="btn btn-ghost" onclick="closeModal('adminModal')">关闭</button>
@@ -434,27 +438,22 @@
         let isAdmin = false;
 
         // ============================================================
-        // 3. Data Persistence (localStorage)
+        // 3. Data — fetch from config file
         // ============================================================
-        const STORAGE_KEY = 'nav_items';
+        const CONFIG_PATH = 'data/nav.json';
+        let navItems = [];
 
-        function loadItems() {
+        async function loadNavItems() {
             try {
-                const raw = localStorage.getItem(STORAGE_KEY);
-                if (raw) return JSON.parse(raw);
-            } catch (_) { /* ignore */ }
-            // Default items
-            return [
-                { name: '2048 游戏', path: '2048.html', icon: '&#9883;' },
-                { name: '宋词浏览',  path: 'index.html', icon: '&#128214;' },
-            ];
+                const res = await fetch(CONFIG_PATH + '?t=' + Date.now());
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                navItems = await res.json();
+            } catch (e) {
+                console.warn('加载配置文件失败，使用空列表:', e);
+                navItems = [];
+            }
+            renderGrid();
         }
-
-        function saveItems(items) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-        }
-
-        let navItems = loadItems();
 
         // ============================================================
         // 4. Render
@@ -599,7 +598,6 @@
                 showToast('修改成功', 'success');
             }
 
-            saveItems(navItems);
             closeModal('itemModal');
             renderGrid();
             renderAdminList();
@@ -609,14 +607,53 @@
             if (!confirm(`确定删除「${navItems[index].name}」吗？`)) return;
             const name = navItems[index].name;
             navItems.splice(index, 1);
-            saveItems(navItems);
             renderGrid();
             renderAdminList();
             showToast(`已删除「${name}」`, 'info');
         }
 
         // ============================================================
-        // 8. Modal Helpers
+        // 8. Export / Import Config
+        // ============================================================
+        function exportConfig() {
+            const blob = new Blob([JSON.stringify(navItems, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'nav.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('配置文件已下载，替换 data/nav.json 后提交即可同步', 'success');
+        }
+
+        function triggerImport() {
+            document.getElementById('importInput').click();
+        }
+
+        function importConfig(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (ev) {
+                try {
+                    const data = JSON.parse(ev.target.result);
+                    if (!Array.isArray(data)) throw new Error('格式错误，需要数组');
+                    navItems = data;
+                    renderGrid();
+                    renderAdminList();
+                    showToast('导入成功，点击「导出配置」覆盖 data/nav.json 即可持久化', 'success');
+                } catch (err) {
+                    showToast('导入失败：' + err.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+            e.target.value = '';
+        }
+
+        // ============================================================
+        // 9. Modal Helpers
         // ============================================================
         function openModal(id) {
             document.getElementById(id).classList.add('active');
@@ -634,7 +671,7 @@
         });
 
         // ============================================================
-        // 9. Toast
+        // 10. Toast
         // ============================================================
         function showToast(msg, type) {
             const container = document.getElementById('toastContainer');
@@ -650,9 +687,9 @@
         }
 
         // ============================================================
-        // 10. Init
+        // 11. Init
         // ============================================================
-        renderGrid();
+        loadNavItems();
     </script>
 </body>
 </html>

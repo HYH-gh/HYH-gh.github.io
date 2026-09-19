@@ -320,6 +320,10 @@
                 <div class="label">分数</div>
                 <div class="value" id="score">0</div>
             </div>
+            <div class="score-box" style="background:#cdc1b4;">
+                <div class="label">最高</div>
+                <div class="value" id="highScore">0</div>
+            </div>
             <button class="btn-new" id="btnNewGame">新游戏</button>
         </div>
     </div>
@@ -358,6 +362,7 @@
     const boardEl = document.getElementById('board');
     const tileContainer = document.getElementById('tileContainer');
     const scoreEl = document.getElementById('score');
+    const highScoreEl = document.getElementById('highScore');
     const sizeSlider = document.getElementById('sizeSlider');
     const sizeDisplay = document.getElementById('sizeDisplay');
     const sizeDisplay2 = document.getElementById('sizeDisplay2');
@@ -371,6 +376,7 @@
     let size = 4;
     let grid = [];
     let score = 0;
+    let highScore = 0;
     let gameOver = false;
     let gameWon = false;
     let keepPlaying = false;
@@ -383,13 +389,87 @@
 
     const ANIM_DURATION = 150; // ms, matches CSS transition
 
+    // ---- localStorage persistence (per board size) ----
+    function storageKey(suffix) { return '2048_' + suffix + '_' + size; }
+
+    function loadHighScore() {
+        try {
+            const val = localStorage.getItem(storageKey('highscore'));
+            return val ? parseInt(val, 10) : 0;
+        } catch (_) { return 0; }
+    }
+
+    function saveHighScore(val) {
+        try { localStorage.setItem(storageKey('highscore'), String(val)); } catch (_) {}
+    }
+
+    function saveGameState() {
+        try {
+            const state = { grid, score, gameOver, gameWon, keepPlaying };
+            localStorage.setItem(storageKey('save'), JSON.stringify(state));
+        } catch (_) {}
+    }
+
+    function loadGameState() {
+        try {
+            const raw = localStorage.getItem(storageKey('save'));
+            if (!raw) return null;
+            return JSON.parse(raw);
+        } catch (_) { return null; }
+    }
+
+    function clearGameState() {
+        try { localStorage.removeItem(storageKey('save')); } catch (_) {}
+    }
+
     // ---- Initialize ----
     function init() {
         size = parseInt(sizeSlider.value, 10);
         sizeDisplay.textContent = size;
         sizeDisplay2.textContent = size;
         buildBoard();
-        startGame();
+        updateDifficultyBadge();
+        // Try restoring saved state
+        if (!restoreGame()) startGame();
+    }
+
+    function updateHighScoreDisplay() {
+        highScoreEl.textContent = highScore;
+    }
+
+    // ---- Restore saved game for current size ----
+    function restoreGame() {
+        highScore = loadHighScore();
+        updateHighScoreDisplay();
+
+        const saved = loadGameState();
+        if (!saved) return false;
+
+        grid = saved.grid;
+        score = saved.score || 0;
+        gameOver = saved.gameOver || false;
+        gameWon = saved.gameWon || false;
+        keepPlaying = saved.keepPlaying || false;
+
+        // Validate saved grid dimensions match current size
+        if (!grid || grid.length !== size || !grid[0] || grid[0].length !== size) {
+            return false;
+        }
+
+        clearTileElements();
+        if (gameOver) {
+            gameMessage.classList.remove('show');
+            gameOver = false;
+            gameWon = false;
+            keepPlaying = false;
+            return false;
+        }
+        updateScore();
+        renderTiles();
+        updateDifficultyBadge();
+        console.log(`%c♻️ 恢复存档 (${size}×${size}) 分数=${score}`, 'font-size:14px;font-weight:bold;color:#9b59b6;');
+        logGrid('恢复的棋盘', grid);
+        return true;
     }
 
     // ---- Build grid background ----
@@ -413,6 +493,11 @@
         isAnimating = false;
         gameMessage.classList.remove('show');
         updateScore();
+        clearGameState();
+
+        // Reload high score for this size
+        highScore = loadHighScore();
+        updateHighScoreDisplay();
 
         // Clear all persistent tile elements
         clearTileElements();
@@ -789,6 +874,7 @@
                     logGrid('生成方块后的棋盘', grid);
                 }
                 checkGameState();
+                saveGameState();
                 setTimeout(() => { isAnimating = false; }, 50);
             });
         } else {
@@ -1040,6 +1126,13 @@
 
     // ---- Check win / lose ----
     function checkGameState() {
+        // Update high score
+        if (score > highScore) {
+            highScore = score;
+            saveHighScore(highScore);
+            updateHighScoreDisplay();
+        }
+
         if (!gameWon && !keepPlaying) {
             for (let r = 0; r < size; r++) {
                 for (let c = 0; c < size; c++) {
@@ -1109,7 +1202,7 @@
         sizeDisplay2.textContent = size;
         updateDifficultyBadge();
         buildBoard();
-        startGame();
+        if (!restoreGame()) startGame();
     });
 
     // ---- Buttons ----

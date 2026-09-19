@@ -331,6 +331,7 @@
         <span class="size-value" id="sizeDisplay">4</span>
         <span style="font-size:13px;color:#776e65;opacity:0.7;">×</span>
         <span class="size-value" id="sizeDisplay2">4</span>
+        <span class="difficulty-badge" id="difficultyBadge" style="margin-left:4px;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;background:#eee4da;color:#776e65;"></span>
     </div>
 
     <!-- Board -->
@@ -416,10 +417,15 @@
         // Clear all persistent tile elements
         clearTileElements();
 
-        addRandomTile();
-        addRandomTile();
+        // Add initial tiles proportional to board size
+        const tpm = getTilesPerMove();
+        const initialCount = Math.max(2, tpm * 2);
+        for (let i = 0; i < initialCount; i++) {
+            addRandomTile();
+        }
         renderTiles();
-        console.log(`%c🔄 新游戏 (${size}×${size})`, 'font-size:16px;font-weight:bold;color:#e67e22;');
+        updateDifficultyBadge();
+        console.log(`%c🔄 新游戏 (${size}×${size}) 初始${initialCount}个方块 每步+${tpm}`, 'font-size:16px;font-weight:bold;color:#e67e22;');
         logGrid('初始棋盘', grid);
     }
 
@@ -440,6 +446,29 @@
         const [r, c] = empty[Math.floor(Math.random() * empty.length)];
         grid[r][c] = Math.random() < 0.9 ? 2 : 4;
         return { r, c, value: grid[r][c] };
+    }
+
+    // ---- Difficulty balance: more tiles per move on larger boards ----
+    function getTilesPerMove() {
+        // 4×4 (16 cells) → 1 tile per move, scale by area
+        // Formula keeps 4×4 at 1 while larger boards generate more
+        return Math.max(1, Math.floor(size * size / 18));
+    }
+
+    function updateDifficultyBadge() {
+        const badge = document.getElementById('difficultyBadge');
+        const tpm = getTilesPerMove();
+        const cellsPerTile = size * size / tpm;
+        let label, color, bg;
+        if (size === 4 && tpm === 1)       { label = '经典'; color = '#776e65'; bg = '#eee4da'; }
+        else if (cellsPerTile >= 30)       { label = '极难'; color = '#f9f6f2'; bg = '#f65e3b'; }
+        else if (cellsPerTile >= 22)       { label = '困难'; color = '#f9f6f2'; bg = '#e67e22'; }
+        else if (cellsPerTile >= 16)       { label = '适中'; color = '#f9f6f2'; bg = '#f2b179'; }
+        else if (cellsPerTile >= 12)       { label = '较易'; color = '#776e65'; bg = '#ede0c8'; }
+        else                               { label = '简单'; color = '#776e65'; bg = '#eee4da'; }
+        badge.textContent = label + ' · +' + tpm;
+        badge.style.background = bg;
+        badge.style.color = color;
     }
 
     // ---- Debug logging ----
@@ -745,12 +774,19 @@
 
             isAnimating = true;
             renderTilesAnimated(movements, () => {
-                // Add new random tile and create its DOM element with appear animation
-                const newPos = addRandomTile();
-                if (newPos) {
-                    console.log(`%c生成新方块: (${newPos.r},${newPos.c}) = ${newPos.value}`, 'color:#e74c3c;');
+                // Add new tiles based on board size to balance difficulty
+                const tpm = getTilesPerMove();
+                let addedCount = 0;
+                for (let i = 0; i < tpm; i++) {
+                    const newPos = addRandomTile();
+                    if (newPos) {
+                        addNewTileElement(newPos.r, newPos.c, newPos.value);
+                        addedCount++;
+                    }
+                }
+                if (addedCount > 0) {
+                    console.log(`%c生成 ${addedCount} 个新方块`, 'color:#e74c3c;');
                     logGrid('生成方块后的棋盘', grid);
-                    addNewTileElement(newPos.r, newPos.c, newPos.value);
                 }
                 checkGameState();
                 setTimeout(() => { isAnimating = false; }, 50);
@@ -1071,6 +1107,7 @@
         size = parseInt(this.value, 10);
         sizeDisplay.textContent = size;
         sizeDisplay2.textContent = size;
+        updateDifficultyBadge();
         buildBoard();
         startGame();
     });

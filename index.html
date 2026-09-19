@@ -1,49 +1,658 @@
 <!DOCTYPE html>
-<html lang="zh-Hans">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>中华诗词典藏</title>
-    <!-- 引入繁体转简体库 -->
-    <script src="https://cdn.jsdelivr.net/npm/opencc-js@1.0.5/dist/umd/full.js"></script>
-    <link rel="stylesheet" href="./css/style.css">
+    <title>导航主页</title>
+    <style>
+        /* ===== Reset & Base ===== */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans SC', sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            min-height: 100vh;
+            color: #e0e0e0;
+        }
+
+        /* ===== Scrollbar ===== */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+
+        /* ===== Header ===== */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            backdrop-filter: blur(12px);
+            background: rgba(255,255,255,0.04);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(90deg, #f7971e, #ffd200);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 1px;
+        }
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* ===== Buttons ===== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 18px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            outline: none;
+            text-decoration: none;
+        }
+        .btn:active { transform: scale(0.96); }
+        .btn-ghost {
+            background: rgba(255,255,255,0.08);
+            color: #ccc;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .btn-ghost:hover { background: rgba(255,255,255,0.15); color: #fff; }
+        .btn-primary {
+            background: linear-gradient(135deg, #f7971e, #ffd200);
+            color: #1a1a2e;
+            font-weight: 600;
+        }
+        .btn-primary:hover { box-shadow: 0 4px 20px rgba(247,151,30,0.35); transform: translateY(-1px); }
+        .btn-danger {
+            background: rgba(239,68,68,0.15);
+            color: #ef4444;
+            border: 1px solid rgba(239,68,68,0.25);
+        }
+        .btn-danger:hover { background: rgba(239,68,68,0.25); }
+        .btn-sm { padding: 5px 12px; font-size: 12px; border-radius: 6px; }
+
+        /* ===== Main Content ===== */
+        main {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 60px 24px 120px;
+        }
+
+        .hero {
+            text-align: center;
+            margin-bottom: 56px;
+        }
+        .hero h2 {
+            font-size: 42px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #f093fb, #f5576c, #f7971e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.3;
+        }
+        .hero p {
+            margin-top: 14px;
+            font-size: 16px;
+            color: rgba(255,255,255,0.5);
+            letter-spacing: 0.5px;
+        }
+
+        /* ===== Navigation Grid ===== */
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 20px;
+        }
+        .nav-grid-empty {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 60px 20px;
+            color: rgba(255,255,255,0.3);
+            font-size: 15px;
+            border: 2px dashed rgba(255,255,255,0.08);
+            border-radius: 16px;
+        }
+
+        /* ===== Card ===== */
+        .card {
+            position: relative;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 28px 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            overflow: hidden;
+            backdrop-filter: blur(4px);
+        }
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            border-radius: 16px;
+            opacity: 0;
+            background: linear-gradient(135deg, rgba(247,151,30,0.08), rgba(255,210,0,0.04));
+            transition: opacity 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-6px);
+            border-color: rgba(247,151,30,0.25);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+        }
+        .card:hover::before { opacity: 1; }
+        .card > * { position: relative; z-index: 1; }
+
+        .card-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, rgba(247,151,30,0.2), rgba(255,210,0,0.1));
+            color: #ffd200;
+        }
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+        .card-path {
+            font-size: 13px;
+            color: rgba(255,255,255,0.3);
+            font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+        }
+        .card-arrow {
+            position: absolute;
+            right: 20px;
+            bottom: 20px;
+            font-size: 18px;
+            color: rgba(255,255,255,0.15);
+            transition: all 0.3s ease;
+        }
+        .card:hover .card-arrow {
+            color: #ffd200;
+            transform: translateX(4px);
+        }
+
+        /* Admin card actions */
+        .card-admin-actions {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            display: flex;
+            gap: 6px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            z-index: 2;
+        }
+        .card:hover .card-admin-actions { opacity: 1; }
+        .card-admin-actions .btn {
+            padding: 4px 10px;
+            font-size: 11px;
+            border-radius: 6px;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+        }
+        .card-admin-actions .btn-edit-card {
+            color: #60a5fa;
+            border: 1px solid rgba(96,165,250,0.3);
+        }
+        .card-admin-actions .btn-edit-card:hover { background: rgba(96,165,250,0.2); }
+        .card-admin-actions .btn-del-card {
+            color: #ef4444;
+            border: 1px solid rgba(239,68,68,0.3);
+        }
+        .card-admin-actions .btn-del-card:hover { background: rgba(239,68,68,0.2); }
+
+        /* ===== Modal ===== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(6px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.2s ease;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: #1e1e32;
+            border-radius: 20px;
+            padding: 36px 32px 32px;
+            width: 90%;
+            max-width: 440px;
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+            animation: slideUp 0.25s ease;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 6px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.25);
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+        .form-group input:focus {
+            border-color: rgba(247,151,30,0.5);
+        }
+        .form-group input::placeholder {
+            color: rgba(255,255,255,0.2);
+        }
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        /* ===== Toast ===== */
+        .toast-container {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        .toast {
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            backdrop-filter: blur(12px);
+            animation: toastIn 0.3s ease;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        .toast-success { background: rgba(34,197,94,0.2); color: #4ade80; border: 1px solid rgba(34,197,94,0.25); }
+        .toast-error   { background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
+        .toast-info    { background: rgba(96,165,250,0.2); color: #93c5fd; border: 1px solid rgba(96,165,250,0.25); }
+
+        /* ===== Admin Badge ===== */
+        .admin-badge {
+            font-size: 12px;
+            color: #ffd200;
+            background: rgba(255,210,0,0.12);
+            padding: 2px 10px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,210,0,0.15);
+        }
+
+        /* ===== Animations ===== */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes toastIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 640px) {
+            header { padding: 16px 20px; }
+            header h1 { font-size: 20px; }
+            main { padding: 32px 16px 80px; }
+            .hero h2 { font-size: 28px; }
+            .nav-grid { grid-template-columns: 1fr; }
+            .modal { padding: 24px 20px; }
+        }
+    </style>
 </head>
 <body>
-    <!-- 导航栏 -->
-    <nav class="nav-container">
-        <div class="nav-logo">诗苑</div>
-        <div class="nav-search">
-            <input type="text" id="searchInput" placeholder="搜索诗词、作者或关键词...">
-            <button onclick="handleSearch()">搜索</button>
+    <!-- ===== Header ===== -->
+    <header>
+        <h1>&#9670; 导航中心</h1>
+        <div class="header-actions">
+            <span class="admin-badge" id="adminBadge" style="display:none">管理员</span>
+            <button class="btn btn-ghost" id="adminBtn" onclick="toggleLogin()">管理员登录</button>
         </div>
-        <div class="nav-links">
-            <a href="javascript:void(0)" onclick="showDailyRecommend()">首页</a>
-            <a href="javascript:void(0)" onclick="loadPoetryByDynasty('唐')">唐诗</a>
-            <a href="javascript:void(0)" onclick="loadPoetryByDynasty('宋')">宋词</a>
-            <a href="javascript:void(0)" onclick="loadPoetryByDynasty('元')">元曲</a>
-        </div>
-    </nav>
+    </header>
 
-    <!-- 主内容区 -->
+    <!-- ===== Main ===== -->
     <main>
-        <!-- 轮播图容器 -->
-        <div class="carousel-container" id="carousel"></div>
-        
-        <!-- 搜索结果容器 -->
-        <div class="search-results" id="searchResults" style="display: none;">
-            <div class="result-list" id="resultList"></div>
-            <div class="pagination" id="pagination"></div>
+        <div class="hero">
+            <h2>探索 &middot; 发现 &middot; 创造</h2>
+            <p>选择一个项目开始你的旅程</p>
         </div>
+        <div class="nav-grid" id="navGrid"></div>
     </main>
 
-    <!-- 诗词详情弹窗 -->
-    <div id="poetryModal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <div id="poetryDetail"></div>
+    <!-- ===== Admin Login Modal ===== -->
+    <div class="modal-overlay" id="loginModal">
+        <div class="modal">
+            <div class="modal-title">管理员登录</div>
+            <div class="form-group">
+                <label>账号</label>
+                <input type="text" id="loginUser" placeholder="请输入管理员账号" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="loginPass" placeholder="请输入密码" onkeydown="if(event.key==='Enter') doLogin()">
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-ghost" onclick="closeModal('loginModal')">取消</button>
+                <button class="btn btn-primary" onclick="doLogin()">登 录</button>
+            </div>
         </div>
     </div>
 
-    <script src="js/main.js"></script>
+    <!-- ===== Admin Panel Modal ===== -->
+    <div class="modal-overlay" id="adminModal">
+        <div class="modal" style="max-width:520px">
+            <div class="modal-title">管理导航</div>
+            <div style="margin-bottom:20px; display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="btn btn-primary" onclick="openAddModal()">+ 添加导航项</button>
+                <button class="btn btn-ghost" onclick="doLogout()">退出管理</button>
+            </div>
+            <div id="adminList" style="display:flex;flex-direction:column;gap:8px;"></div>
+            <div style="margin-top:18px; font-size:12px; color:rgba(255,255,255,0.25);">
+                提示：将鼠标悬停在导航卡片上可进行编辑 / 删除操作
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-ghost" onclick="closeModal('adminModal')">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Add / Edit Item Modal ===== -->
+    <div class="modal-overlay" id="itemModal">
+        <div class="modal">
+            <div class="modal-title" id="itemModalTitle">添加导航项</div>
+            <div class="form-group">
+                <label>名称</label>
+                <input type="text" id="itemName" placeholder="例如：诗词浏览">
+            </div>
+            <div class="form-group">
+                <label>相对路径</label>
+                <input type="text" id="itemPath" placeholder="例如：poetry/index.html">
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-ghost" onclick="closeModal('itemModal')">取消</button>
+                <button class="btn btn-primary" id="itemSaveBtn" onclick="saveItem()">保存</button>
+            </div>
+            <input type="hidden" id="editIndex" value="-1">
+        </div>
+    </div>
+
+    <!-- ===== Toast Container ===== -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // ============================================================
+        // 1. Hardcoded Admin Credentials
+        // ============================================================
+        const ADMIN_USER = 'admin';
+        const ADMIN_PASS = 'admin888';
+
+        // ============================================================
+        // 2. State
+        // ============================================================
+        let isAdmin = false;
+
+        // ============================================================
+        // 3. Data Persistence (localStorage)
+        // ============================================================
+        const STORAGE_KEY = 'nav_items';
+
+        function loadItems() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) return JSON.parse(raw);
+            } catch (_) { /* ignore */ }
+            // Default items
+            return [
+                { name: '2048 游戏', path: '2048.html', icon: '&#9883;' },
+                { name: '宋词浏览',  path: 'index.html', icon: '&#128214;' },
+            ];
+        }
+
+        function saveItems(items) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+        }
+
+        let navItems = loadItems();
+
+        // ============================================================
+        // 4. Render
+        // ============================================================
+        function renderGrid() {
+            const grid = document.getElementById('navGrid');
+            if (!navItems.length) {
+                grid.innerHTML = '<div class="nav-grid-empty">暂无导航项，管理员登录后可添加</div>';
+                return;
+            }
+            grid.innerHTML = navItems.map((item, i) => `
+                <div class="card" onclick="navigate('${item.path}')">
+                    ${isAdmin ? `
+                    <div class="card-admin-actions">
+                        <button class="btn btn-sm btn-edit-card" onclick="event.stopPropagation(); openEditModal(${i})">编辑</button>
+                        <button class="btn btn-sm btn-del-card" onclick="event.stopPropagation(); deleteItem(${i})">删除</button>
+                    </div>` : ''}
+                    <div class="card-icon">${item.icon || '&#9670;'}</div>
+                    <div class="card-title">${escapeHtml(item.name)}</div>
+                    <div class="card-path">${escapeHtml(item.path)}</div>
+                    <div class="card-arrow">&rarr;</div>
+                </div>
+            `).join('');
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function navigate(path) {
+            if (!path) return;
+            if (path.startsWith('http://') || path.startsWith('https://')) {
+                window.open(path, '_blank');
+            } else {
+                window.location.href = path;
+            }
+        }
+
+        // ============================================================
+        // 5. Admin Login / Logout
+        // ============================================================
+        function toggleLogin() {
+            if (isAdmin) {
+                openModal('adminModal');
+            } else {
+                openModal('loginModal');
+                document.getElementById('loginUser').focus();
+            }
+        }
+
+        function doLogin() {
+            const user = document.getElementById('loginUser').value.trim();
+            const pass = document.getElementById('loginPass').value.trim();
+            if (user === ADMIN_USER && pass === ADMIN_PASS) {
+                isAdmin = true;
+                closeModal('loginModal');
+                document.getElementById('loginUser').value = '';
+                document.getElementById('loginPass').value = '';
+                document.getElementById('adminBadge').style.display = 'inline';
+                document.getElementById('adminBtn').textContent = '管理导航';
+                renderGrid();
+                showToast('登录成功', 'success');
+                openModal('adminModal');
+                renderAdminList();
+            } else {
+                showToast('账号或密码错误', 'error');
+            }
+        }
+
+        function doLogout() {
+            isAdmin = false;
+            closeModal('adminModal');
+            document.getElementById('adminBadge').style.display = 'none';
+            document.getElementById('adminBtn').textContent = '管理员登录';
+            renderGrid();
+            showToast('已退出管理', 'info');
+        }
+
+        // ============================================================
+        // 6. Admin List (inside admin modal)
+        // ============================================================
+        function renderAdminList() {
+            const container = document.getElementById('adminList');
+            if (!navItems.length) {
+                container.innerHTML = '<div style="text-align:center;padding:30px 0;color:rgba(255,255,255,0.3);">暂无导航项</div>';
+                return;
+            }
+            container.innerHTML = navItems.map((item, i) => `
+                <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.04);border-radius:10px;padding:10px 14px;border:1px solid rgba(255,255,255,0.06);">
+                    <div>
+                        <div style="font-weight:500;color:#fff;font-size:14px;">${escapeHtml(item.name)}</div>
+                        <div style="font-size:12px;color:rgba(255,255,255,0.3);font-family:monospace;">${escapeHtml(item.path)}</div>
+                    </div>
+                    <div style="display:flex;gap:6px;">
+                        <button class="btn btn-sm btn-ghost" onclick="openEditModal(${i})">编辑</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteItem(${i})">删除</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ============================================================
+        // 7. CRUD
+        // ============================================================
+        function openAddModal() {
+            document.getElementById('itemModalTitle').textContent = '添加导航项';
+            document.getElementById('itemName').value = '';
+            document.getElementById('itemPath').value = '';
+            document.getElementById('editIndex').value = '-1';
+            document.getElementById('itemSaveBtn').textContent = '添加';
+            openModal('itemModal');
+            setTimeout(() => document.getElementById('itemName').focus(), 100);
+        }
+
+        function openEditModal(index) {
+            const item = navItems[index];
+            document.getElementById('itemModalTitle').textContent = '编辑导航项';
+            document.getElementById('itemName').value = item.name;
+            document.getElementById('itemPath').value = item.path;
+            document.getElementById('editIndex').value = index;
+            document.getElementById('itemSaveBtn').textContent = '保存';
+            openModal('itemModal');
+            setTimeout(() => document.getElementById('itemName').focus(), 100);
+        }
+
+        function saveItem() {
+            const name = document.getElementById('itemName').value.trim();
+            const path = document.getElementById('itemPath').value.trim();
+            if (!name) { showToast('请输入名称', 'error'); return; }
+            if (!path) { showToast('请输入路径', 'error'); return; }
+
+            const editIndex = parseInt(document.getElementById('editIndex').value, 10);
+            const newItem = { name, path, icon: '&#9670;' };
+
+            if (editIndex === -1) {
+                navItems.push(newItem);
+                showToast('添加成功', 'success');
+            } else {
+                navItems[editIndex] = newItem;
+                showToast('修改成功', 'success');
+            }
+
+            saveItems(navItems);
+            closeModal('itemModal');
+            renderGrid();
+            renderAdminList();
+        }
+
+        function deleteItem(index) {
+            if (!confirm(`确定删除「${navItems[index].name}」吗？`)) return;
+            const name = navItems[index].name;
+            navItems.splice(index, 1);
+            saveItems(navItems);
+            renderGrid();
+            renderAdminList();
+            showToast(`已删除「${name}」`, 'info');
+        }
+
+        // ============================================================
+        // 8. Modal Helpers
+        // ============================================================
+        function openModal(id) {
+            document.getElementById(id).classList.add('active');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        // Close modal on overlay click
+        document.querySelectorAll('.modal-overlay').forEach(el => {
+            el.addEventListener('click', (e) => {
+                if (e.target === el) el.classList.remove('active');
+            });
+        });
+
+        // ============================================================
+        // 9. Toast
+        // ============================================================
+        function showToast(msg, type) {
+            const container = document.getElementById('toastContainer');
+            const el = document.createElement('div');
+            el.className = `toast toast-${type}`;
+            el.textContent = msg;
+            container.appendChild(el);
+            setTimeout(() => {
+                el.style.opacity = '0';
+                el.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => el.remove(), 300);
+            }, 2500);
+        }
+
+        // ============================================================
+        // 10. Init
+        // ============================================================
+        renderGrid();
+    </script>
 </body>
 </html>

@@ -1,323 +1,68 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="theme-dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>导航主页</title>
+    <title>导航中心</title>
+    <!-- Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <!-- WinUI on Web 样式 -->
+    <link rel="stylesheet" href="https://unpkg.com/winuionweb/dist/winuionweb.css" />
     <style>
         /* ===== Reset & Base ===== */
-        *, *::before, *::after {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans SC', sans-serif;
-            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
             min-height: 100vh;
-            color: #e0e0e0;
+            background: var(--FillColorTransparentBackground, #0f0c29);
+            background-image: radial-gradient(ellipse at 20% 50%, rgba(247,151,30,0.06) 0%, transparent 60%),
+                              radial-gradient(ellipse at 80% 20%, rgba(240,147,251,0.05) 0%, transparent 50%);
         }
+        html.theme-dark body { background:#0d0d1a; }
 
         /* ===== Scrollbar ===== */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+        ::-webkit-scrollbar { width:6px; }
+        ::-webkit-scrollbar-track { background:transparent; }
+        ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.12); border-radius:3px; }
+
+        /* ===== App Wrapper ===== */
+        #app {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
 
         /* ===== Header ===== */
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px 40px;
-            backdrop-filter: blur(12px);
-            background: rgba(255,255,255,0.04);
-            border-bottom: 1px solid rgba(255,255,255,0.06);
+        .app-header {
             position: sticky;
             top: 0;
             z-index: 100;
+            backdrop-filter: blur(20px);
+            background: rgba(0,0,0,0.3);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
         }
-        header h1 {
-            font-size: 24px;
+        .app-header .header-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+        }
+        .header-title {
+            font-size: 22px;
             font-weight: 700;
+            letter-spacing: 1px;
             background: linear-gradient(90deg, #f7971e, #ffd200);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            letter-spacing: 1px;
         }
         .header-actions {
             display: flex;
             align-items: center;
-            gap: 12px;
-        }
-
-        /* ===== Buttons ===== */
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 18px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.25s ease;
-            outline: none;
-            text-decoration: none;
-        }
-        .btn:active { transform: scale(0.96); }
-        .btn-ghost {
-            background: rgba(255,255,255,0.08);
-            color: #ccc;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .btn-ghost:hover { background: rgba(255,255,255,0.15); color: #fff; }
-        .btn-primary {
-            background: linear-gradient(135deg, #f7971e, #ffd200);
-            color: #1a1a2e;
-            font-weight: 600;
-        }
-        .btn-primary:hover { box-shadow: 0 4px 20px rgba(247,151,30,0.35); transform: translateY(-1px); }
-        .btn-danger {
-            background: rgba(239,68,68,0.15);
-            color: #ef4444;
-            border: 1px solid rgba(239,68,68,0.25);
-        }
-        .btn-danger:hover { background: rgba(239,68,68,0.25); }
-        .btn-sm { padding: 5px 12px; font-size: 12px; border-radius: 6px; }
-
-        /* ===== Main Content ===== */
-        main {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 60px 24px 120px;
-        }
-
-        .hero {
-            text-align: center;
-            margin-bottom: 56px;
-        }
-        .hero h2 {
-            font-size: 42px;
-            font-weight: 800;
-            background: linear-gradient(135deg, #f093fb, #f5576c, #f7971e);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            line-height: 1.3;
-        }
-        .hero p {
-            margin-top: 14px;
-            font-size: 16px;
-            color: rgba(255,255,255,0.5);
-            letter-spacing: 0.5px;
-        }
-
-        /* ===== Navigation Grid ===== */
-        .nav-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-            gap: 20px;
-        }
-        .nav-grid-empty {
-            grid-column: 1 / -1;
-            text-align: center;
-            padding: 60px 20px;
-            color: rgba(255,255,255,0.3);
-            font-size: 15px;
-            border: 2px dashed rgba(255,255,255,0.08);
-            border-radius: 16px;
-        }
-
-        /* ===== Card ===== */
-        .card {
-            position: relative;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 16px;
-            padding: 28px 24px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            overflow: hidden;
-            backdrop-filter: blur(4px);
-        }
-        .card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            border-radius: 16px;
-            opacity: 0;
-            background: linear-gradient(135deg, rgba(247,151,30,0.08), rgba(255,210,0,0.04));
-            transition: opacity 0.3s ease;
-        }
-        .card:hover {
-            transform: translateY(-6px);
-            border-color: rgba(247,151,30,0.25);
-            box-shadow: 0 12px 40px rgba(0,0,0,0.3);
-        }
-        .card:hover::before { opacity: 1; }
-        .card > * { position: relative; z-index: 1; }
-
-        .card-icon {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            margin-bottom: 16px;
-            background: linear-gradient(135deg, rgba(247,151,30,0.2), rgba(255,210,0,0.1));
-            color: #ffd200;
-        }
-        .card-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #fff;
-            margin-bottom: 6px;
-        }
-        .card-path {
-            font-size: 13px;
-            color: rgba(255,255,255,0.3);
-            font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-        }
-        .card-arrow {
-            position: absolute;
-            right: 20px;
-            bottom: 20px;
-            font-size: 18px;
-            color: rgba(255,255,255,0.15);
-            transition: all 0.3s ease;
-        }
-        .card:hover .card-arrow {
-            color: #ffd200;
-            transform: translateX(4px);
-        }
-
-        /* Admin card actions */
-        .card-admin-actions {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            display: flex;
-            gap: 6px;
-            opacity: 0;
-            transition: opacity 0.2s ease;
-            z-index: 2;
-        }
-        .card:hover .card-admin-actions { opacity: 1; }
-        .card-admin-actions .btn {
-            padding: 4px 10px;
-            font-size: 11px;
-            border-radius: 6px;
-            background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(4px);
-        }
-        .card-admin-actions .btn-edit-card {
-            color: #60a5fa;
-            border: 1px solid rgba(96,165,250,0.3);
-        }
-        .card-admin-actions .btn-edit-card:hover { background: rgba(96,165,250,0.2); }
-        .card-admin-actions .btn-del-card {
-            color: #ef4444;
-            border: 1px solid rgba(239,68,68,0.3);
-        }
-        .card-admin-actions .btn-del-card:hover { background: rgba(239,68,68,0.2); }
-
-        /* ===== Modal ===== */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(6px);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-            animation: fadeIn 0.2s ease;
-        }
-        .modal-overlay.active { display: flex; }
-        .modal {
-            background: #1e1e32;
-            border-radius: 20px;
-            padding: 36px 32px 32px;
-            width: 90%;
-            max-width: 440px;
-            border: 1px solid rgba(255,255,255,0.08);
-            box-shadow: 0 24px 80px rgba(0,0,0,0.5);
-            animation: slideUp 0.25s ease;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-        .modal-title {
-            font-size: 20px;
-            font-weight: 700;
-            color: #fff;
-            margin-bottom: 24px;
-        }
-
-        .form-group {
-            margin-bottom: 18px;
-        }
-        .form-group label {
-            display: block;
-            font-size: 13px;
-            font-weight: 500;
-            color: rgba(255,255,255,0.6);
-            margin-bottom: 6px;
-        }
-        .form-group input {
-            width: 100%;
-            padding: 10px 14px;
-            border-radius: 8px;
-            border: 1px solid rgba(255,255,255,0.1);
-            background: rgba(0,0,0,0.25);
-            color: #fff;
-            font-size: 14px;
-            outline: none;
-            transition: border-color 0.2s ease;
-        }
-        .form-group input:focus {
-            border-color: rgba(247,151,30,0.5);
-        }
-        .form-group input::placeholder {
-            color: rgba(255,255,255,0.2);
-        }
-        .form-actions {
-            display: flex;
             gap: 10px;
-            justify-content: flex-end;
-            margin-top: 24px;
         }
-
-        /* ===== Toast ===== */
-        .toast-container {
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 2000;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-        }
-        .toast {
-            padding: 12px 24px;
-            border-radius: 10px;
-            font-size: 14px;
-            font-weight: 500;
-            backdrop-filter: blur(12px);
-            animation: toastIn 0.3s ease;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-        }
-        .toast-success { background: rgba(34,197,94,0.2); color: #4ade80; border: 1px solid rgba(34,197,94,0.25); }
-        .toast-error   { background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
-        .toast-info    { background: rgba(96,165,250,0.2); color: #93c5fd; border: 1px solid rgba(96,165,250,0.25); }
-
-        /* ===== Admin Badge ===== */
-        .admin-badge {
+        .admin-badge-text {
             font-size: 12px;
             color: #ffd200;
             background: rgba(255,210,0,0.12);
@@ -326,370 +71,546 @@
             border: 1px solid rgba(255,210,0,0.15);
         }
 
-        /* ===== Animations ===== */
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes toastIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        /* ===== Hero ===== */
+        .hero-section {
+            text-align: center;
+            padding: 64px 24px 48px;
+        }
+        .hero-title {
+            font-size: 42px;
+            font-weight: 800;
+            line-height: 1.3;
+            background: linear-gradient(135deg, #f093fb, #f5576c, #f7971e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero-sub {
+            margin-top: 12px;
+            font-size: 16px;
+            opacity: 0.5;
+        }
+
+        /* ===== Card Grid ===== */
+        .card-grid {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 24px 100px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 20px;
+        }
+        .card-grid-empty {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 60px 20px;
+            opacity: 0.3;
+            border: 2px dashed rgba(255,255,255,0.08);
+            border-radius: 16px;
+        }
+
+        /* ===== Navigation Card ===== */
+        .nav-card {
+            position: relative;
+            background: rgba(255,255,255,0.04) !important;
+            border: 1px solid rgba(255,255,255,0.08);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            overflow: hidden;
+            user-select: none;
+        }
+        .nav-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            opacity: 0;
+            background: linear-gradient(135deg, rgba(247,151,30,0.08), rgba(255,210,0,0.04));
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        .nav-card:hover {
+            transform: translateY(-6px);
+            border-color: rgba(247,151,30,0.3) !important;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+        }
+        .nav-card:hover::before { opacity:1; }
+        .nav-card .card-content {
+            position: relative;
+            z-index: 1;
+        }
+        .nav-card .card-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-bottom: 14px;
+            background: linear-gradient(135deg, rgba(247,151,30,0.2), rgba(255,210,0,0.1));
+        }
+        .nav-card .card-title-text {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .nav-card .card-path-text {
+            font-size: 13px;
+            opacity: 0.35;
+            font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+        }
+        .nav-card .card-arrow {
+            position: absolute;
+            right: 20px;
+            bottom: 16px;
+            font-size: 20px;
+            opacity: 0.2;
+            transition: all 0.3s ease;
+        }
+        .nav-card:hover .card-arrow {
+            opacity: 1;
+            color: #ffd200;
+            transform: translateX(4px);
+        }
+
+        /* ===== Card Admin Actions (hover) ===== */
+        .card-admin-trigger {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 5;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .nav-card:hover .card-admin-trigger { opacity: 1; }
+        .card-admin-trigger .action-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            border: none;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+            color: rgba(255,255,255,0.7);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            margin-left: 4px;
+        }
+        .card-admin-trigger .action-btn:hover { color:#fff; }
+        .card-admin-trigger .action-btn.edit-btn { color:#60a5fa; }
+        .card-admin-trigger .action-btn.edit-btn:hover { background:rgba(96,165,250,0.25); }
+        .card-admin-trigger .action-btn.del-btn { color:#ef4444; }
+        .card-admin-trigger .action-btn.del-btn:hover { background:rgba(239,68,68,0.25); }
+
+        /* ===== Custom Modal Overlay (for complex dialogs) ===== */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(6px);
+            animation: fadeIn 0.15s ease;
+        }
+        .modal-overlay > div {
+            animation: slideUp 0.2s ease;
+        }
+        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+        @keyframes slideUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+
+        /* ===== Admin List ===== */
+        .admin-list-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+        }
 
         /* ===== Responsive ===== */
-        @media (max-width: 640px) {
-            header { padding: 16px 20px; }
-            header h1 { font-size: 20px; }
-            main { padding: 32px 16px 80px; }
-            .hero h2 { font-size: 28px; }
-            .nav-grid { grid-template-columns: 1fr; }
-            .modal { padding: 24px 20px; }
+        @media (max-width:640px) {
+            .hero-title { font-size: 28px; }
+            .hero-section { padding:40px 16px 32px; }
+            .card-grid { padding:0 16px 80px; grid-template-columns:1fr; }
+            .app-header .header-inner { padding:12px 16px; }
         }
     </style>
 </head>
 <body>
-    <!-- ===== Header ===== -->
-    <header>
-        <h1>&#9670; 导航中心</h1>
-        <div class="header-actions">
-            <span class="admin-badge" id="adminBadge" style="display:none">管理员</span>
-            <button class="btn btn-ghost" id="adminBtn" onclick="toggleLogin()">管理员登录</button>
+    <div id="app">
+        <!-- ===== Header ===== -->
+        <div class="app-header">
+            <div class="header-inner">
+                <span class="header-title">◊ 导航中心</span>
+                <div class="header-actions">
+                    <span v-if="isAdmin" class="admin-badge-text">管理员</span>
+                    <win-button :content="isAdmin ? '管理导航' : '管理员登录'"
+                                @Click="isAdmin ? openAdmin() : (showLogin=true)"></win-button>
+                </div>
+            </div>
         </div>
-    </header>
 
-    <!-- ===== Main ===== -->
-    <main>
-        <div class="hero">
-            <h2>探索 &middot; 发现 &middot; 创造</h2>
-            <p>选择一个项目开始你的旅程</p>
+        <!-- ===== Hero ===== -->
+        <div class="hero-section">
+            <div class="hero-title">探索 · 发现 · 创造</div>
+            <div class="hero-sub">选择一个项目开始你的旅程</div>
         </div>
-        <div class="nav-grid" id="navGrid"></div>
-    </main>
 
-    <!-- ===== Admin Login Modal ===== -->
-    <div class="modal-overlay" id="loginModal">
-        <div class="modal">
-            <div class="modal-title">管理员登录</div>
-            <div class="form-group">
-                <label>账号</label>
-                <input type="text" id="loginUser" placeholder="请输入管理员账号" autocomplete="off">
-            </div>
-            <div class="form-group">
-                <label>密码</label>
-                <input type="password" id="loginPass" placeholder="请输入密码" onkeydown="if(event.key==='Enter') doLogin()">
-            </div>
-            <div class="form-actions">
-                <button class="btn btn-ghost" onclick="closeModal('loginModal')">取消</button>
-                <button class="btn btn-primary" onclick="doLogin()">登 录</button>
-            </div>
+        <!-- ===== Card Grid ===== -->
+        <div class="card-grid">
+            <template v-if="navItems.length === 0">
+                <div class="card-grid-empty">暂无导航项，管理员登录后可添加</div>
+            </template>
+            <template v-for="(item, index) in navItems" :key="index">
+                <win-border class="nav-card" CornerRadius="16" Padding="24,20"
+                            @Click="navigate(item.path)">
+                    <!-- Admin hover actions -->
+                    <div v-if="isAdmin" class="card-admin-trigger">
+                        <button class="action-btn edit-btn" title="编辑" @click.stop="openItemEditor(index)">&#9998;</button>
+                        <button class="action-btn del-btn" title="删除" @click.stop="confirmDelete(index)">&#10005;</button>
+                    </div>
+                    <!-- Card content -->
+                    <div class="card-content">
+                        <div class="card-icon">◈</div>
+                        <div class="card-title-text">{{ item.name }}</div>
+                        <div class="card-path-text">{{ item.path }}</div>
+                    </div>
+                    <div class="card-arrow">→</div>
+                </win-border>
+            </template>
         </div>
+
+        <!-- ===== InfoBar Toast ===== -->
+        <div style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:2000;pointer-events:none;">
+            <win-info-bar v-if="toast.show"
+                          :Title="toast.title"
+                          :Message="toast.message"
+                          :Severity="toast.severity"
+                          :IsOpen="toast.show"
+                          IsClosable
+                          @Update:IsOpen="toast.show = $event"
+                          style="pointer-events:auto;min-width:300px;max-width:480px;"></win-info-bar>
+        </div>
+
+        <!-- ===== Login ContentDialog ===== -->
+        <win-content-dialog v-model:IsOpen="showLogin"
+                            Title="管理员登录"
+                            PrimaryButtonText="登录"
+                            SecondaryButtonText="取消"
+                            @PrimaryButtonClick="doLogin"
+                            @SecondaryButtonClick="showLogin=false">
+            <win-stack-panel spacing="12">
+                <win-text-box v-model:Text="loginUser" PlaceholderText="请输入管理员账号"></win-text-box>
+                <win-password-box v-model:Password="loginPass" PlaceholderText="请输入密码"></win-password-box>
+            </win-stack-panel>
+        </win-content-dialog>
+
+        <!-- ===== Delete Confirm ContentDialog ===== -->
+        <win-content-dialog v-model:IsOpen="showDeleteConfirm"
+                            Title="确认删除"
+                            :Content="'确定要删除「' + deleteTargetName + '」吗？此操作不可撤销。'"
+                            PrimaryButtonText="删除"
+                            SecondaryButtonText="取消"
+                            @PrimaryButtonClick="doDelete"
+                            @SecondaryButtonClick="showDeleteConfirm=false"></win-content-dialog>
+
+        <!-- ===== Admin Panel (custom modal, complex content) ===== -->
+        <div v-if="showAdmin" class="modal-overlay" @click.self="showAdmin=false">
+            <win-border CornerRadius="16" Padding="28" Background="rgba(25,25,45,0.95)"
+                        BorderThickness="1" BorderBrush="rgba(255,255,255,0.08)"
+                        style="width:90%;max-width:520px;max-height:80vh;overflow-y:auto;">
+                <win-stack-panel spacing="16">
+                    <win-text-block text="管理导航" FontSize="22" FontWeight="Bold"></win-text-block>
+
+                    <!-- Toolbar -->
+                    <win-stack-panel orientation="Horizontal" spacing="8" style="flex-wrap:wrap;">
+                        <win-button content="+ 添加" Style="Accent" @Click="openItemEditor(-1)"></win-button>
+                        <win-button content="导出配置" @Click="exportConfig"></win-button>
+                        <win-button content="导入配置" @Click="triggerImport"></win-button>
+                        <win-button content="退出管理" @Click="doLogout"></win-button>
+                    </win-stack-panel>
+
+                    <!-- Item list -->
+                    <div v-if="navItems.length === 0" style="text-align:center;padding:24px 0;opacity:0.4;">
+                        <win-text-block text="暂无导航项" FontSize="14"></win-text-block>
+                    </div>
+                    <div v-for="(item, i) in navItems" :key="i" class="admin-list-item">
+                        <div>
+                            <win-text-block :text="item.name" FontSize="14" FontWeight="SemiBold"></win-text-block>
+                            <win-text-block :text="item.path" FontSize="12" Opacity="0.4"></win-text-block>
+                        </div>
+                        <win-stack-panel orientation="Horizontal" spacing="6">
+                            <win-button content="编辑" @Click="openItemEditor(i)"></win-button>
+                            <win-button content="删除" @Click="confirmDelete(i)"></win-button>
+                        </win-stack-panel>
+                    </div>
+
+                    <!-- Hint -->
+                    <win-text-block text="修改后点击「导出配置」下载 nav.json，替换项目中的 data/nav.json 并提交 Git 即可同步到所有人"
+                                    FontSize="12" Opacity="0.25" TextWrapping="Wrap"></win-text-block>
+
+                    <div style="text-align:right;">
+                        <win-button content="关闭" @Click="showAdmin=false"></win-button>
+                    </div>
+                </win-stack-panel>
+            </win-border>
+        </div>
+
+        <!-- ===== Add / Edit Item Modal ===== -->
+        <div v-if="showItemEditor" class="modal-overlay" @click.self="showItemEditor=false">
+            <win-border CornerRadius="16" Padding="28" Background="rgba(25,25,45,0.95)"
+                        BorderThickness="1" BorderBrush="rgba(255,255,255,0.08)"
+                        style="width:90%;max-width:420px;">
+                <win-stack-panel spacing="16">
+                    <win-text-block :text="editingIndex === -1 ? '添加导航项' : '编辑导航项'" FontSize="22" FontWeight="Bold"></win-text-block>
+                    <win-text-box v-model:Text="itemName" PlaceholderText="例如：诗词浏览"></win-text-box>
+                    <win-text-box v-model:Text="itemPath" PlaceholderText="例如：poetry/index.html"></win-text-box>
+                    <win-stack-panel orientation="Horizontal" horizontal-alignment="Right" spacing="8">
+                        <win-button content="取消" @Click="showItemEditor=false"></win-button>
+                        <win-button content="保存" Style="Accent" @Click="saveItem"></win-button>
+                    </win-stack-panel>
+                </win-stack-panel>
+            </win-border>
+        </div>
+
+        <!-- ===== Hidden file input for import ===== -->
+        <input type="file" ref="importInputRef" accept=".json" style="display:none" @change="importConfig">
     </div>
 
-    <!-- ===== Admin Panel Modal ===== -->
-    <div class="modal-overlay" id="adminModal">
-        <div class="modal" style="max-width:520px">
-            <div class="modal-title">管理导航</div>
-            <div style="margin-bottom:16px; display:flex; gap:8px; flex-wrap:wrap;">
-                <button class="btn btn-primary" onclick="openAddModal()">+ 添加</button>
-                <button class="btn btn-ghost" onclick="exportConfig()">导出配置</button>
-                <button class="btn btn-ghost" onclick="triggerImport()">导入配置</button>
-                <button class="btn btn-ghost" onclick="doLogout()">退出管理</button>
-            </div>
-            <input type="file" id="importInput" accept=".json" style="display:none" onchange="importConfig(event)">
-            <div id="adminList" style="display:flex;flex-direction:column;gap:8px;"></div>
-            <div style="margin-top:18px; font-size:12px; color:rgba(255,255,255,0.25); line-height:1.6;">
-                &#9672; 在导航卡片上悬停可直接编辑 / 删除<br>
-                &#9672; 修改后点击「导出配置」下载文件，替换 <code>data/nav.json</code> 并提交 Git 即可同步到所有人
-            </div>
-            <div class="form-actions">
-                <button class="btn btn-ghost" onclick="closeModal('adminModal')">关闭</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===== Add / Edit Item Modal ===== -->
-    <div class="modal-overlay" id="itemModal">
-        <div class="modal">
-            <div class="modal-title" id="itemModalTitle">添加导航项</div>
-            <div class="form-group">
-                <label>名称</label>
-                <input type="text" id="itemName" placeholder="例如：诗词浏览">
-            </div>
-            <div class="form-group">
-                <label>相对路径</label>
-                <input type="text" id="itemPath" placeholder="例如：poetry/index.html">
-            </div>
-            <div class="form-actions">
-                <button class="btn btn-ghost" onclick="closeModal('itemModal')">取消</button>
-                <button class="btn btn-primary" id="itemSaveBtn" onclick="saveItem()">保存</button>
-            </div>
-            <input type="hidden" id="editIndex" value="-1">
-        </div>
-    </div>
-
-    <!-- ===== Toast Container ===== -->
-    <div class="toast-container" id="toastContainer"></div>
-
+    <!-- ===== WinUI IIFE ===== -->
+    <script src="https://unpkg.com/winuionweb/dist/winuionweb.iife.js"></script>
     <script>
-        // ============================================================
-        // 1. Hardcoded Admin Credentials
-        // ============================================================
-        const ADMIN_USER = 'admin';
-        const ADMIN_PASS = 'admin888';
+        const { createApp, ref, reactive, nextTick, onMounted } = Vue;
 
-        // ============================================================
-        // 2. State
-        // ============================================================
-        let isAdmin = false;
+        const app = createApp({
+            setup() {
+                // ---- State ----
+                const ADMIN_USER = 'admin';
+                const ADMIN_PASS = 'admin888';
+                const CONFIG_PATH = 'data/nav.json';
 
-        // ============================================================
-        // 3. Data — fetch from config file
-        // ============================================================
-        const CONFIG_PATH = 'data/nav.json';
-        let navItems = [];
+                const isAdmin = ref(false);
+                const navItems = ref([]);
 
-        async function loadNavItems() {
-            try {
-                const res = await fetch(CONFIG_PATH + '?t=' + Date.now());
-                if (!res.ok) throw new Error('HTTP ' + res.status);
-                navItems = await res.json();
-            } catch (e) {
-                console.warn('加载配置文件失败，使用空列表:', e);
-                navItems = [];
-            }
-            renderGrid();
-        }
+                // Login
+                const showLogin = ref(false);
+                const loginUser = ref('');
+                const loginPass = ref('');
 
-        // ============================================================
-        // 4. Render
-        // ============================================================
-        function renderGrid() {
-            const grid = document.getElementById('navGrid');
-            if (!navItems.length) {
-                grid.innerHTML = '<div class="nav-grid-empty">暂无导航项，管理员登录后可添加</div>';
-                return;
-            }
-            grid.innerHTML = navItems.map((item, i) => `
-                <div class="card" onclick="navigate('${item.path}')">
-                    ${isAdmin ? `
-                    <div class="card-admin-actions">
-                        <button class="btn btn-sm btn-edit-card" onclick="event.stopPropagation(); openEditModal(${i})">编辑</button>
-                        <button class="btn btn-sm btn-del-card" onclick="event.stopPropagation(); deleteItem(${i})">删除</button>
-                    </div>` : ''}
-                    <div class="card-icon">${item.icon || '&#9670;'}</div>
-                    <div class="card-title">${escapeHtml(item.name)}</div>
-                    <div class="card-path">${escapeHtml(item.path)}</div>
-                    <div class="card-arrow">&rarr;</div>
-                </div>
-            `).join('');
-        }
+                // Admin panel
+                const showAdmin = ref(false);
 
-        function escapeHtml(str) {
-            const div = document.createElement('div');
-            div.textContent = str;
-            return div.innerHTML;
-        }
+                // Delete confirm
+                const showDeleteConfirm = ref(false);
+                const deleteTargetIndex = ref(-1);
+                const deleteTargetName = ref('');
 
-        function navigate(path) {
-            if (!path) return;
-            if (path.startsWith('http://') || path.startsWith('https://')) {
-                window.open(path, '_blank');
-            } else {
-                window.location.href = path;
-            }
-        }
+                // Item editor
+                const showItemEditor = ref(false);
+                const editingIndex = ref(-1);
+                const itemName = ref('');
+                const itemPath = ref('');
 
-        // ============================================================
-        // 5. Admin Login / Logout
-        // ============================================================
-        function toggleLogin() {
-            if (isAdmin) {
-                openModal('adminModal');
-            } else {
-                openModal('loginModal');
-                document.getElementById('loginUser').focus();
-            }
-        }
+                // Import
+                const importInputRef = ref(null);
 
-        function doLogin() {
-            const user = document.getElementById('loginUser').value.trim();
-            const pass = document.getElementById('loginPass').value.trim();
-            if (user === ADMIN_USER && pass === ADMIN_PASS) {
-                isAdmin = true;
-                closeModal('loginModal');
-                document.getElementById('loginUser').value = '';
-                document.getElementById('loginPass').value = '';
-                document.getElementById('adminBadge').style.display = 'inline';
-                document.getElementById('adminBtn').textContent = '管理导航';
-                renderGrid();
-                showToast('登录成功', 'success');
-                openModal('adminModal');
-                renderAdminList();
-            } else {
-                showToast('账号或密码错误', 'error');
-            }
-        }
+                // Toast
+                const toast = reactive({
+                    show: false,
+                    title: '',
+                    message: '',
+                    severity: 'Informational',
+                });
 
-        function doLogout() {
-            isAdmin = false;
-            closeModal('adminModal');
-            document.getElementById('adminBadge').style.display = 'none';
-            document.getElementById('adminBtn').textContent = '管理员登录';
-            renderGrid();
-            showToast('已退出管理', 'info');
-        }
+                let toastTimer = null;
 
-        // ============================================================
-        // 6. Admin List (inside admin modal)
-        // ============================================================
-        function renderAdminList() {
-            const container = document.getElementById('adminList');
-            if (!navItems.length) {
-                container.innerHTML = '<div style="text-align:center;padding:30px 0;color:rgba(255,255,255,0.3);">暂无导航项</div>';
-                return;
-            }
-            container.innerHTML = navItems.map((item, i) => `
-                <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.04);border-radius:10px;padding:10px 14px;border:1px solid rgba(255,255,255,0.06);">
-                    <div>
-                        <div style="font-weight:500;color:#fff;font-size:14px;">${escapeHtml(item.name)}</div>
-                        <div style="font-size:12px;color:rgba(255,255,255,0.3);font-family:monospace;">${escapeHtml(item.path)}</div>
-                    </div>
-                    <div style="display:flex;gap:6px;">
-                        <button class="btn btn-sm btn-ghost" onclick="openEditModal(${i})">编辑</button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteItem(${i})">删除</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // ============================================================
-        // 7. CRUD
-        // ============================================================
-        function openAddModal() {
-            document.getElementById('itemModalTitle').textContent = '添加导航项';
-            document.getElementById('itemName').value = '';
-            document.getElementById('itemPath').value = '';
-            document.getElementById('editIndex').value = '-1';
-            document.getElementById('itemSaveBtn').textContent = '添加';
-            openModal('itemModal');
-            setTimeout(() => document.getElementById('itemName').focus(), 100);
-        }
-
-        function openEditModal(index) {
-            const item = navItems[index];
-            document.getElementById('itemModalTitle').textContent = '编辑导航项';
-            document.getElementById('itemName').value = item.name;
-            document.getElementById('itemPath').value = item.path;
-            document.getElementById('editIndex').value = index;
-            document.getElementById('itemSaveBtn').textContent = '保存';
-            openModal('itemModal');
-            setTimeout(() => document.getElementById('itemName').focus(), 100);
-        }
-
-        function saveItem() {
-            const name = document.getElementById('itemName').value.trim();
-            const path = document.getElementById('itemPath').value.trim();
-            if (!name) { showToast('请输入名称', 'error'); return; }
-            if (!path) { showToast('请输入路径', 'error'); return; }
-
-            const editIndex = parseInt(document.getElementById('editIndex').value, 10);
-            const newItem = { name, path, icon: '&#9670;' };
-
-            if (editIndex === -1) {
-                navItems.push(newItem);
-                showToast('添加成功', 'success');
-            } else {
-                navItems[editIndex] = newItem;
-                showToast('修改成功', 'success');
-            }
-
-            closeModal('itemModal');
-            renderGrid();
-            renderAdminList();
-        }
-
-        function deleteItem(index) {
-            if (!confirm(`确定删除「${navItems[index].name}」吗？`)) return;
-            const name = navItems[index].name;
-            navItems.splice(index, 1);
-            renderGrid();
-            renderAdminList();
-            showToast(`已删除「${name}」`, 'info');
-        }
-
-        // ============================================================
-        // 8. Export / Import Config
-        // ============================================================
-        function exportConfig() {
-            const blob = new Blob([JSON.stringify(navItems, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'nav.json';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            showToast('配置文件已下载，替换 data/nav.json 后提交即可同步', 'success');
-        }
-
-        function triggerImport() {
-            document.getElementById('importInput').click();
-        }
-
-        function importConfig(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function (ev) {
-                try {
-                    const data = JSON.parse(ev.target.result);
-                    if (!Array.isArray(data)) throw new Error('格式错误，需要数组');
-                    navItems = data;
-                    renderGrid();
-                    renderAdminList();
-                    showToast('导入成功，点击「导出配置」覆盖 data/nav.json 即可持久化', 'success');
-                } catch (err) {
-                    showToast('导入失败：' + err.message, 'error');
+                // ---- Methods ----
+                function showToast(title, message, severity) {
+                    if (toastTimer) clearTimeout(toastTimer);
+                    toast.title = title;
+                    toast.message = message;
+                    toast.severity = severity || 'Informational';
+                    toast.show = true;
+                    toastTimer = setTimeout(() => { toast.show = false; }, 3000);
                 }
-            };
-            reader.readAsText(file);
-            e.target.value = '';
-        }
 
-        // ============================================================
-        // 9. Modal Helpers
-        // ============================================================
-        function openModal(id) {
-            document.getElementById(id).classList.add('active');
-        }
+                async function loadNavItems() {
+                    try {
+                        const res = await fetch(CONFIG_PATH + '?t=' + Date.now());
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        navItems.value = await res.json();
+                    } catch (e) {
+                        console.warn('加载配置文件失败:', e);
+                        navItems.value = [];
+                    }
+                }
 
-        function closeModal(id) {
-            document.getElementById(id).classList.remove('active');
-        }
+                function navigate(path) {
+                    if (!path) return;
+                    if (path.startsWith('http://') || path.startsWith('https://')) {
+                        window.open(path, '_blank');
+                    } else {
+                        window.location.href = path;
+                    }
+                }
 
-        // Close modal on overlay click
-        document.querySelectorAll('.modal-overlay').forEach(el => {
-            el.addEventListener('click', (e) => {
-                if (e.target === el) el.classList.remove('active');
-            });
+                // ---- Login / Logout ----
+                function doLogin() {
+                    if (loginUser.value === ADMIN_USER && loginPass.value === ADMIN_PASS) {
+                        isAdmin.value = true;
+                        showLogin.value = false;
+                        loginUser.value = '';
+                        loginPass.value = '';
+                        showToast('登录成功', '', 'Success');
+                        nextTick(() => { showAdmin.value = true; });
+                    } else {
+                        showToast('登录失败', '账号或密码错误', 'Error');
+                    }
+                }
+
+                function doLogout() {
+                    isAdmin.value = false;
+                    showAdmin.value = false;
+                    showToast('已退出管理', '', 'Informational');
+                }
+
+                function openAdmin() {
+                    showAdmin.value = true;
+                }
+
+                // ---- Delete ----
+                function confirmDelete(index) {
+                    deleteTargetIndex.value = index;
+                    deleteTargetName.value = navItems.value[index].name;
+                    showDeleteConfirm.value = true;
+                }
+
+                function doDelete() {
+                    const name = deleteTargetName.value;
+                    navItems.value.splice(deleteTargetIndex.value, 1);
+                    showDeleteConfirm.value = false;
+                    showToast('已删除', '「' + name + '」已移除', 'Informational');
+                }
+
+                // ---- Item Editor ----
+                function openItemEditor(index) {
+                    editingIndex.value = index;
+                    if (index === -1) {
+                        itemName.value = '';
+                        itemPath.value = '';
+                    } else {
+                        const item = navItems.value[index];
+                        itemName.value = item.name;
+                        itemPath.value = item.path;
+                    }
+                    showItemEditor.value = true;
+                }
+
+                function saveItem() {
+                    const name = itemName.value.trim();
+                    const path = itemPath.value.trim();
+                    if (!name) { showToast('保存失败', '请输入名称', 'Error'); return; }
+                    if (!path) { showToast('保存失败', '请输入路径', 'Error'); return; }
+
+                    const newItem = { name, path, icon: '◈' };
+
+                    if (editingIndex.value === -1) {
+                        navItems.value.push(newItem);
+                        showToast('添加成功', '「' + name + '」已添加', 'Success');
+                    } else {
+                        navItems.value[editingIndex.value] = newItem;
+                        showToast('修改成功', '「' + name + '」已更新', 'Success');
+                    }
+
+                    showItemEditor.value = false;
+                }
+
+                // ---- Export / Import ----
+                function exportConfig() {
+                    const blob = new Blob([JSON.stringify(navItems.value, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'nav.json';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    showToast('配置已导出', '替换 data/nav.json 后提交 Git 即可同步', 'Success');
+                }
+
+                function triggerImport() {
+                    importInputRef.value?.click();
+                }
+
+                function importConfig(e) {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = function (ev) {
+                        try {
+                            const data = JSON.parse(ev.target.result);
+                            if (!Array.isArray(data)) throw new Error('需要 JSON 数组格式');
+                            navItems.value = data;
+                            showToast('导入成功', '点击「导出配置」覆盖 data/nav.json 即可持久化', 'Success');
+                        } catch (err) {
+                            showToast('导入失败', err.message, 'Error');
+                        }
+                    };
+                    reader.readAsText(file);
+                    e.target.value = '';
+                }
+
+                // ---- Init ----
+                onMounted(() => {
+                    loadNavItems();
+                });
+
+                // ---- Keyboard: Enter in login dialog ----
+                function onLoginKeydown(e) {
+                    if (e.key === 'Enter') doLogin();
+                }
+
+                return {
+                    isAdmin, navItems,
+                    showLogin, loginUser, loginPass,
+                    showAdmin,
+                    showDeleteConfirm, deleteTargetName,
+                    showItemEditor, editingIndex, itemName, itemPath,
+                    importInputRef,
+                    toast,
+                    doLogin, doLogout, openAdmin,
+                    navigate,
+                    confirmDelete, doDelete,
+                    openItemEditor, saveItem,
+                    exportConfig, triggerImport, importConfig,
+                };
+            }
         });
 
-        // ============================================================
-        // 10. Toast
-        // ============================================================
-        function showToast(msg, type) {
-            const container = document.getElementById('toastContainer');
-            const el = document.createElement('div');
-            el.className = `toast toast-${type}`;
-            el.textContent = msg;
-            container.appendChild(el);
-            setTimeout(() => {
-                el.style.opacity = '0';
-                el.style.transition = 'opacity 0.3s ease';
-                setTimeout(() => el.remove(), 300);
-            }, 2500);
-        }
+        // ---- Register WinUI Components ----
+        const winComponents = [
+            'StackPanel', 'TextBlock', 'Button',
+            'TextBox', 'PasswordBox',
+            'Border', 'ContentDialog', 'InfoBar',
+        ];
+        winComponents.forEach(name => {
+            const tag = 'win-' + name.replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, '');
+            if (WinUIonWeb[name]) {
+                app.component(tag, WinUIonWeb[name]);
+            }
+        });
 
-        // ============================================================
-        // 11. Init
-        // ============================================================
-        loadNavItems();
+        app.mount('#app');
     </script>
 </body>
 </html>

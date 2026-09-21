@@ -8,5 +8,15 @@
     "name": "UMLite 工具",
     "path": "html/UMLite/index.html",
     "type": "path"
+  },
+  {
+    "name": "岁时",
+    "path": "html/SuiShi/index.html",
+    "type": "path"
+  },
+  {
+    "name": "Minecraft源代码",
+    "path": "http://mcsrc.dev",
+    "type": "link"
   }
 ]

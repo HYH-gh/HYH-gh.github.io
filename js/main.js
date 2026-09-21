@@ -22,6 +22,9 @@
     var LOG_PATH = 'data/log.json';
     var NAV_STORAGE = 'hub_nav_items';
     var LOG_STORAGE = 'hub_log_items';
+    var DB_NAME = 'hub_file_handles';
+    var DB_VERSION = 1;
+    var fileHandles = { nav: null, log: null };
 
     // ============================================================
     // 3. Theme
@@ -68,7 +71,257 @@
     }
 
     // ============================================================
-    // 5. Data - load nav & logs (localStorage 优先，JSON 文件为初始默认)
+    // 5. File System Access API — 直接读写磁盘文件
+    // ============================================================
+    function isFileSystemAPISupported() {
+        return 'showOpenFilePicker' in window;
+    }
+
+    function openDB(callback) {
+        if (!window.indexedDB) { callback(null); return; }
+        var request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = function (e) {
+            var db = e.target.result;
+            if (!db.objectStoreNames.contains('handles')) {
+                db.createObjectStore('handles');
+            }
+        };
+        request.onsuccess = function (e) { callback(e.target.result); };
+        request.onerror = function () { callback(null); };
+    }
+
+    function saveFileHandle(key, handle) {
+        openDB(function (db) {
+            if (!db) return;
+            var tx = db.transaction('handles', 'readwrite');
+            var store = tx.objectStore('handles');
+            store.put(handle, key);
+        });
+    }
+
+    function removeFileHandle(key) {
+        openDB(function (db) {
+            if (!db) return;
+            var tx = db.transaction('handles', 'readwrite');
+            var store = tx.objectStore('handles');
+            store.delete(key);
+        });
+    }
+
+    function loadFileHandles(callback) {
+        openDB(function (db) {
+            if (!db) { callback(null, null); return; }
+            var tx = db.transaction('handles', 'readonly');
+            var store = tx.objectStore('handles');
+            var navReq = store.get('nav');
+            var logReq = store.get('log');
+            var navHandle = undefined;
+            var logHandle = undefined;
+            var done = 0;
+            function check() {
+                done++;
+                if (done >= 2) callback(navHandle, logHandle);
+            }
+            navReq.onsuccess = function (e) { navHandle = e.target.result; check(); };
+            navReq.onerror = check;
+            logReq.onsuccess = function (e) { logHandle = e.target.result; check(); };
+            logReq.onerror = check;
+        });
+    }
+
+    function writeToFile(handle, jsonData, callback) {
+        handle.createWritable().then(function (writable) {
+            var content = JSON.stringify(jsonData, null, 2);
+            return writable.write(content).then(function () { return writable.close(); });
+        }).then(function () {
+            if (callback) callback(null);
+        }).catch(function (e) {
+            if (callback) callback(e);
+        });
+    }
+
+    function readFromFile(handle, callback) {
+        handle.getFile().then(function (file) {
+            return file.text();
+        }).then(function (text) {
+            try {
+                var data = JSON.parse(text);
+                callback(null, data);
+            } catch (e) {
+                callback(e);
+            }
+        }).catch(function (e) {
+            callback(e);
+        });
+    }
+
+    async function pickAndSyncFile(key, label) {
+        try {
+            var handles = await window.showOpenFilePicker({
+                types: [{ description: 'JSON Files', accept: { 'application/json': ['.json'] } }],
+                multiple: false,
+                suggestedName: label + '.json'
+            });
+            var handle = handles[0];
+            var opts = { mode: 'readwrite' };
+            var perm = await handle.queryPermission(opts);
+            if (perm !== 'granted') {
+                perm = await handle.requestPermission(opts);
+            }
+            if (perm !== 'granted') {
+                showToast('未获得 ' + label + '.json 写入权限', 'error');
+                return null;
+            }
+            return handle;
+        } catch (e) {
+            if (e.name !== 'AbortError') {
+                console.warn('File picker error:', e);
+            }
+            return null;
+        }
+    }
+
+    window.syncDiskFiles = function () {
+        if (!isFileSystemAPISupported()) {
+            showToast('当前浏览器不支持 File System Access API，请使用 Chrome/Edge', 'error');
+            return;
+        }
+        showToast('请选择 data/nav.json 文件', 'info');
+        pickAndSyncFile('nav', 'nav').then(function (navHandle) {
+            if (!navHandle) return;
+            showToast('请选择 data/log.json 文件', 'info');
+            pickAndSyncFile('log', 'log').then(function (logHandle) {
+                if (!logHandle) return;
+                fileHandles.nav = navHandle;
+                fileHandles.log = logHandle;
+                saveFileHandle('nav', navHandle);
+                saveFileHandle('log', logHandle);
+
+                var loaded = 0;
+                function tryDone() {
+                    loaded++;
+                    if (loaded >= 2) {
+                        updateSyncUI();
+                        saveNavToStorage();
+                        saveLogToStorage();
+                        renderGrid();
+                        renderAdminList();
+                        renderLogList();
+                        showToast('磁盘同步成功！后续修改将自动写入文件', 'success');
+                    }
+                }
+                readFromFile(navHandle, function (err, data) {
+                    if (!err && Array.isArray(data)) {
+                        navItems = data;
+                        saveNavToStorage();
+                    }
+                    tryDone();
+                });
+                readFromFile(logHandle, function (err, data) {
+                    if (!err && Array.isArray(data)) {
+                        logItems = data;
+                        saveLogToStorage();
+                    }
+                    tryDone();
+                });
+            });
+        });
+    };
+
+    function initFileSync() {
+        if (!isFileSystemAPISupported()) {
+            updateSyncUI();
+            return;
+        }
+        loadFileHandles(function (navHandle, logHandle) {
+            if (!navHandle && !logHandle) {
+                updateSyncUI();
+                return;
+            }
+            var tasks = [];
+            if (navHandle) {
+                tasks.push(new Promise(function (resolve) {
+                    navHandle.queryPermission({ mode: 'readwrite' }).then(function (perm) {
+                        if (perm === 'granted') {
+                            fileHandles.nav = navHandle;
+                            readFromFile(navHandle, function (err, data) {
+                                if (!err && Array.isArray(data)) {
+                                    navItems = data;
+                                    saveNavToStorage();
+                                }
+                                resolve();
+                            });
+                        } else {
+                            removeFileHandle('nav');
+                            resolve();
+                        }
+                    }).catch(function () { resolve(); });
+                }));
+            }
+            if (logHandle) {
+                tasks.push(new Promise(function (resolve) {
+                    logHandle.queryPermission({ mode: 'readwrite' }).then(function (perm) {
+                        if (perm === 'granted') {
+                            fileHandles.log = logHandle;
+                            readFromFile(logHandle, function (err, data) {
+                                if (!err && Array.isArray(data)) {
+                                    logItems = data;
+                                    saveLogToStorage();
+                                }
+                                resolve();
+                            });
+                        } else {
+                            removeFileHandle('log');
+                            resolve();
+                        }
+                    }).catch(function () { resolve(); });
+                }));
+            }
+            Promise.all(tasks).then(function () {
+                updateSyncUI();
+                if (fileHandles.nav || fileHandles.log) {
+                    renderGrid();
+                    renderAdminList();
+                    renderLogList();
+                }
+            });
+        });
+    }
+
+    function updateSyncUI() {
+        var btn = document.getElementById('syncDiskBtn');
+        var status = document.getElementById('syncStatus');
+        if (!btn || !status) return;
+
+        if (!isFileSystemAPISupported()) {
+            btn.style.display = 'none';
+            status.style.display = 'none';
+            return;
+        }
+
+        btn.style.display = '';
+        var connected = !!(fileHandles.nav && fileHandles.log);
+        if (connected) {
+            btn.style.background = 'var(--success-bg)';
+            btn.style.color = 'var(--success)';
+            btn.style.borderColor = 'var(--success)';
+            btn.title = '磁盘文件已同步，修改自动写入';
+            status.style.display = 'inline';
+            status.textContent = '已同步';
+            status.style.color = 'var(--success)';
+            status.style.fontSize = '11px';
+            status.style.fontWeight = '500';
+        } else {
+            btn.style.background = '';
+            btn.style.color = '';
+            btn.style.borderColor = '';
+            btn.title = '同步磁盘文件后，所有修改将直接写入磁盘文件';
+            status.style.display = 'none';
+        }
+    }
+
+    // ============================================================
+    // 6. Data - load nav & logs (localStorage 优先，JSON 文件为初始默认)
     // ============================================================
     function loadNavItems() {
         var stored = localStorage.getItem(NAV_STORAGE);
@@ -104,14 +357,24 @@
 
     function saveNavToStorage() {
         localStorage.setItem(NAV_STORAGE, JSON.stringify(navItems));
+        if (fileHandles.nav) {
+            writeToFile(fileHandles.nav, navItems, function (err) {
+                if (err) console.warn('写入 nav.json 失败:', err);
+            });
+        }
     }
 
     function saveLogToStorage() {
         localStorage.setItem(LOG_STORAGE, JSON.stringify(logItems));
+        if (fileHandles.log) {
+            writeToFile(fileHandles.log, logItems, function (err) {
+                if (err) console.warn('写入 log.json 失败:', err);
+            });
+        }
     }
 
     // ============================================================
-    // 6. Default SVG icon for cards
+    // 7. Default SVG icon for cards
     // ============================================================
     function cardIconSVG() {
         return '<svg viewBox="0 0 24 24" width="22" height="22">' +
@@ -132,7 +395,7 @@
     }
 
     // ============================================================
-    // 7. Render grid
+    // 8. Render grid
     // ============================================================
     function renderGrid() {
         var grid = document.getElementById('navGrid');
@@ -190,7 +453,7 @@
     }
 
     // ============================================================
-    // 8. Navigation
+    // 9. Navigation
     // ============================================================
     function navigate(path, isUrl) {
         if (!path) return;
@@ -202,7 +465,7 @@
     }
 
     // ============================================================
-    // 9. Path type segmented toggle
+    // 10. Path type segmented toggle
     // ============================================================
     window.setPathType = function (type) {
         currentPathType = type;
@@ -225,7 +488,7 @@
     };
 
     // ============================================================
-    // 10. Admin Login / Logout
+    // 11. Admin Login / Logout
     // ============================================================
     function toggleLogin() {
         if (isAdmin) {
@@ -254,6 +517,7 @@
             showToast('登录成功', 'success');
             openModal('adminModal');
             renderAdminList();
+            initFileSync();
         } else {
             showToast('账号或密码错误', 'error');
         }
@@ -271,7 +535,7 @@
     }
 
     // ============================================================
-    // 11. Admin list
+    // 12. Admin list
     // ============================================================
     function renderAdminList() {
         var container = document.getElementById('adminList');
@@ -302,7 +566,7 @@
     }
 
     // ============================================================
-    // 12. Nav CRUD
+    // 13. Nav CRUD
     // ============================================================
     function openAddModal() {
         document.getElementById('itemModalTitle').textContent = '添加导航项';
@@ -369,7 +633,7 @@
     }
 
     // ============================================================
-    // 13. Export / Import Nav Config
+    // 14. Export / Import Nav Config
     // ============================================================
     function exportConfig() {
         downloadJSON(navItems, 'nav.json', 'nav.json 已下载，请手动替换 data/nav.json 后提交 Git');
@@ -390,7 +654,7 @@
     }
 
     // ============================================================
-    // 14. Generic JSON download / import helpers
+    // 15. Generic JSON download / import helpers
     // ============================================================
     function downloadJSON(data, filename, msg) {
         var json = JSON.stringify(data, null, 2);
@@ -424,7 +688,7 @@
     }
 
     // ============================================================
-    // 15. Log Management
+    // 16. Log Management
     // ============================================================
     function openLogModal() {
         loadLogItems();
@@ -541,7 +805,7 @@
     }
 
     // ============================================================
-    // 16. Modal helpers
+    // 17. Modal helpers
     // ============================================================
     function openModal(id) {
         document.getElementById(id).classList.add('active');
@@ -563,7 +827,7 @@
     }
 
     // ============================================================
-    // 17. Toast
+    // 18. Toast
     // ============================================================
     function showToast(msg, type) {
         var container = document.getElementById('toastContainer');
@@ -581,7 +845,7 @@
     }
 
     // ============================================================
-    // 18. Expose public API
+    // 19. Expose public API
     // ============================================================
     window.NavHub = {
         navigate: navigate,
@@ -611,7 +875,7 @@
     window.openLogEdit = openLogEdit;    // 添加日志按钮直接调用
 
     // ============================================================
-    // 19. Init
+    // 20. Init
     // ============================================================
     initTheme();
     bindModals();

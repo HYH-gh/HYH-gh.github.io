@@ -110,7 +110,7 @@
             <div class="admin-list" id="adminList"></div>
             <div class="admin-hint">
                 <svg viewBox="0 0 24 24" width="14" height="14" style="flex-shrink:0"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="0.5" fill="currentColor"/></svg>
-                <span>在卡片上悬停可直接编辑 / 删除 &middot; 修改后导出替换 <code>data/nav.json</code> 即可同步</span>
+                <span>编辑后不会自动修改磁盘文件，请点击「导出」下载 JSON，手动替换 <code>data/nav.json</code> 后 Git 提交即可同步给所有用户。</span>
             </div>
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeModal('adminModal')">关闭</button>
@@ -182,7 +182,7 @@
             <div class="admin-list" id="logList" style="max-height:360px"></div>
             <div class="admin-hint">
                 <svg viewBox="0 0 24 24" width="14" height="14" style="flex-shrink:0"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="0.5" fill="currentColor"/></svg>
-                <span>日志数据存储在 <code>data/log.json</code>，导出后替换并提交 Git 即可同步</span>
+                <span>日志存储在本地浏览器，点击「导出」下载 JSON 替换 <code>data/log.json</code> 后提交即可同步</span>
             </div>
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeModal('logModal')">关闭</button>

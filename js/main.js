@@ -372,7 +372,7 @@
     // 13. Export / Import Nav Config
     // ============================================================
     function exportConfig() {
-        downloadJSON(navItems, 'nav.json', '配置文件已下载，替换 data/nav.json 即可同步');
+        downloadJSON(navItems, 'nav.json', 'nav.json 已下载，请手动替换 data/nav.json 后提交 Git');
     }
 
     function triggerImport() {
@@ -520,7 +520,7 @@
     }
 
     function exportLog() {
-        downloadJSON(logItems, 'log.json', '日志已下载，替换 data/log.json 即可同步');
+        downloadJSON(logItems, 'log.json', 'log.json 已下载，请手动替换 data/log.json 后提交 Git');
     }
 
     function triggerLogImport() {
@@ -608,6 +608,7 @@
     window.exportLog = exportLog;
     window.triggerLogImport = triggerLogImport;
     window.importLogConfig = importLogConfig;
+    window.openLogEdit = openLogEdit;    // 添加日志按钮直接调用
 
     // ============================================================
     // 19. Init

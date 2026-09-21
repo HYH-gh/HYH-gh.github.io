@@ -20,6 +20,8 @@
     var currentPathType = 'path';
     var NAV_PATH = 'data/nav.json';
     var LOG_PATH = 'data/log.json';
+    var NAV_STORAGE = 'hub_nav_items';
+    var LOG_STORAGE = 'hub_log_items';
 
     // ============================================================
     // 3. Theme
@@ -66,20 +68,46 @@
     }
 
     // ============================================================
-    // 5. Data - load nav & logs
+    // 5. Data - load nav & logs (localStorage 优先，JSON 文件为初始默认)
     // ============================================================
     function loadNavItems() {
+        var stored = localStorage.getItem(NAV_STORAGE);
+        if (stored) {
+            try {
+                navItems = JSON.parse(stored);
+                renderGrid();
+                return;
+            } catch (e) { /* 损坏则走 JSON 加载 */ }
+        }
         fetchJSON(NAV_PATH, function (data) {
             navItems = Array.isArray(data) ? data : [];
+            saveNavToStorage();
             renderGrid();
         });
     }
 
     function loadLogItems() {
+        var stored = localStorage.getItem(LOG_STORAGE);
+        if (stored) {
+            try {
+                logItems = JSON.parse(stored);
+                renderLogList();
+                return;
+            } catch (e) { /* 损坏则走 JSON 加载 */ }
+        }
         fetchJSON(LOG_PATH, function (data) {
             logItems = Array.isArray(data) ? data : [];
+            saveLogToStorage();
             renderLogList();
         });
+    }
+
+    function saveNavToStorage() {
+        localStorage.setItem(NAV_STORAGE, JSON.stringify(navItems));
+    }
+
+    function saveLogToStorage() {
+        localStorage.setItem(LOG_STORAGE, JSON.stringify(logItems));
     }
 
     // ============================================================
@@ -324,6 +352,7 @@
         }
 
         closeModal('itemModal');
+        saveNavToStorage();
         renderGrid();
         renderAdminList();
     }
@@ -333,6 +362,7 @@
         var name = navItems[index].name;
         if (!confirm('确定删除「' + name + '」吗？此操作不可撤销。')) return;
         navItems.splice(index, 1);
+        saveNavToStorage();
         renderGrid();
         renderAdminList();
         showToast('已删除「' + name + '」', 'info');
@@ -352,9 +382,10 @@
     function importConfig(e) {
         handleImportJSON(e, function (data) {
             navItems = data;
+            saveNavToStorage();
             renderGrid();
             renderAdminList();
-            showToast('导入成功，点击导出覆盖 data/nav.json 即可持久化', 'success');
+            showToast('导入成功', 'success');
         });
     }
 
@@ -474,6 +505,7 @@
         }
 
         closeModal('logEditModal');
+        saveLogToStorage();
         renderLogList();
     }
 
@@ -482,6 +514,7 @@
         var title = logItems[index].title || '(无标题)';
         if (!confirm('确定删除日志「' + title + '」吗？此操作不可撤销。')) return;
         logItems.splice(index, 1);
+        saveLogToStorage();
         renderLogList();
         showToast('已删除日志', 'info');
     }
@@ -497,8 +530,9 @@
     function importLogConfig(e) {
         handleImportJSON(e, function (data) {
             logItems = data;
+            saveLogToStorage();
             renderLogList();
-            showToast('日志导入成功，点击导出覆盖 data/log.json 即可持久化', 'success');
+            showToast('日志导入成功', 'success');
         });
     }
 

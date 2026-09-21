@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>岁时——关于</title>
+	<link rel="stylesheet" href="./css/about.css" />
+</head>
+
+<body>
+	<div class="header">
+		<div>
+			<a href="./index.html">岁时</a>
+		</div>
+	</div>
+	<div class="body">	
+    <div class="blur-container">
+        <div class="card">
+            <div class="left-panel">
+                <h2>岁时</h2>
+				<p>———中国传统节日网</p>
+                <p>欢迎您的访问！<br><br>
+                    感谢您驻足于此，<br>
+					首次制作，多有不足，<br />
+                    请不吝赐教。<br><br />
+                    您的建议将如春风化雨，<br>
+                    助我等更上层楼...</p><br />
+					<div class="QR">
+					<img src="./res/img/QR.png" alt="图片加载失败,请刷新重试" />
+					<p>扫描二维码访问手机版</p>
+					</div>
+            </div>
+            <div class="right-panel">
+                <button class="toggle-btn" onclick="toggleForm()">关于</button>
+                
+                <form id="feedbackForm" onsubmit="handleSubmit(event)">
+                    <input type="hidden" name="author-email" value="YS-HYH@qq.com">
+                    <label>作者邮箱：
+						<input type="email" readonly value="Y****H@qq.com" />
+					</label>
+                    <label>您的邮箱：
+                        <input type="email" name="email" required>
+                    </label>
+					
+                    <label>网站评分：</label>
+                    <div class="rating">
+                        <input type="radio" name="rating" id="star1" value="1" required>
+                        <label for="star1">★</label>
+                        <input type="radio" name="rating" id="star2" value="2">
+                        <label for="star2">★</label>
+                        <input type="radio" name="rating" id="star3" value="3">
+                        <label for="star3">★</label>
+                        <input type="radio" name="rating" id="star4" value="4">
+                        <label for="star4">★</label>
+                        <input type="radio" name="rating" id="star5" value="5">
+                        <label for="star5">★</label>
+                    </div>
+                    
+                    <label>反馈内容：
+                        <textarea name="feedback" rows="6" required></textarea>
+                    </label>
+                    
+                    <button type="submit" id="submit-btn">提交反馈</button>
+					<button type="button" id="exit" onclick="window.location.href = `./index.html`">返回</button>
+                </form>
+
+                <div class="thanks-content" id="thanksContent">
+                    <h3>关于</h3>
+                    <p>本网站为作者首次制作</p>
+                    <p>独立完成</p>
+                    <p>难免不足，多有包涵</p>
+                    <p>也恳请您的反馈</p>
+                    <p>(作者能够收的哒~)</p><br />
+                    <p>本网站图片资源来源于网络</p>
+					<p>切勿商用</p><br />
+					<h4>特别鸣谢</h4>
+					<p>网站图片资源来源</p>
+					<p><a href="https://www.vcg.com/" target="_blank">视觉中国网</a></p>
+					<p>网页托管服务</p>
+					<p><a href="https://www.github.com" target="_blank">Github Pages</a></p>
+					<p>技术支持</p>
+					<p><a href="https://www.w3school.com.cn/" target="_blank">W3School网站</a></p>
+					<p>文案</p>
+					<p><a href="https://chat.deepseek.com/" target="_blank">深度求索</a></p>
+					<br />
+					<p>2025-04-26  HYH</p>
+					<p>江西·新余</p>         
+                </div>
+            </div>
+        </div>	
+    </div>
+	</div>
+    <script src="js/about.js"></script>
+</body>
+</html>

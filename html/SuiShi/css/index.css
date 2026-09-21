@@ -1,0 +1,625 @@
+*{
+	margin: 0;
+	padding: 0;
+	/* font-size: 62.5%; */
+	/* box-sizing: border-box; */
+	font-family: '微软雅黑', '华文行楷', sans-serif;
+}
+
+html{
+	/* background: url("../res/img/about.webp"); */
+	background-size: cover;
+	backdrop-filter: blur(6px);
+}
+	
+ul li{
+	list-style: none;
+	box-sizing: content-box;
+}
+
+a{
+	text-decoration: none;
+}
+
+:root {
+    --main-red: #d63235;  
+    --gold: #ffd700;    
+    --dark-red: #8b0000;
+	--sun-red: #ffac85;
+    --light-bg: #fff9f0; 
+	--orninge:#ffc246;
+	--nav-color:#fff9c5;
+}
+	
+body{
+	background-color: var(--light-bg);
+	width: 80%;
+	margin: 5px auto;
+	position: relative;
+	backdrop-filter: blur(6px);
+}
+
+.header{
+	width: 100%;
+	background-color: var(--main-red);
+}
+
+.header div h1{
+	font-size: 3.2rem;
+	color: var(--gold);
+	text-shadow: 2px 2px var(--dark-red);
+	margin: 0 10%;
+}
+
+/* ------------------------------------------------------------------------------------- */
+
+.head-and-nav{
+	position: -webkit-sticky;
+	position: sticky;
+	top: 0;
+	z-index: 5;
+}
+
+.nav{
+	width: 100%;
+	height: 40%;
+	padding: 15px 0;
+	display: inline-block;
+	background-color: var(--nav-color);
+}
+
+.nav .nav-content{
+	width: 80%;
+	margin: 0px auto;
+	position: relative;
+}
+
+.nav input{
+	float: left;
+	margin: auto 0;
+	width: 250px;
+	height: 30px;
+	border: #ffd700 2px solid;
+	border-radius: 6px;
+	box-shadow: 2px 2px #8b0000;
+	text-indent: 1rem;
+}
+
+.nav img{
+	transform: translate(-25px,8px);
+	float: left;
+	display: inline;
+	width: 1.2rem;
+}
+
+/* --------------------------- */
+/* 搜索待选栏样式 */
+
+#results{
+	width: 253px;
+	display:block;
+/*    border: 2px solid #ddd; */
+	border-radius: 5px;
+	position: absolute;	
+	transform: translate(0px, 35px);
+    background-color: var(--orninge);	
+}
+
+.result-item { 
+    margin: 0;
+    padding: 2px;   
+    cursor: pointer; /* 鼠标悬停手型 */
+	z-index: 10;	
+}
+
+.result-item h3{
+	font-size: 16px;
+}
+
+.result-item p{
+	font-size: 10px;
+}
+
+.result-item:hover {
+  background-color: #f5f5f5; /* 悬停背景色 */
+}
+mark {
+	color: red; 
+}
+/* --------------------------- */
+
+.nav .list {
+	float: right;
+	/* width: 40%; */
+	/* margin: auto 10%; */
+	margin: 8px 0;
+	position: relative;
+	display: flex;
+	flex-wrap: nowrap;
+	/* overflow-x: auto; */
+}
+
+.nav .list ul{
+	float: right;
+	margin: 0;
+}
+
+.nav .list li{
+	float: left;
+	/* margin: 0 6px; */
+	margin: auto 0;
+	display: inline;
+}
+
+.nav .list a {
+    color: #ff5500;
+    text-decoration: none;
+    padding: 10px 10px;
+	border: #8b0000 1.5px solid;
+	border-right: none;
+    /* border-radius: 3px; */
+    transition: all 0.3s;
+	font-family: "kaiti";
+	font-size: 1.3rem;
+	font-weight: bold;
+}
+
+.nav .list .about a{
+	border-right: #8b0000 1.5px solid;
+}
+
+.nav .list-2{
+	display: none;
+	float: none;
+	position: absolute;
+	width: 50%;
+	transform:translate(-35px,10px);
+	z-index: 10;
+}
+
+.nav .list-2 li a{
+	border: #8b0000 1.4px solid;
+}
+
+.nav .list a:hover {
+    background: var(--dark-red);
+	color: white;
+	font-weight: normal;
+	font-family: "fangsong";
+	z-index: 10;
+}
+
+.nav .list li:hover .list-2 , .list-2:hover{
+	display: block;
+}
+
+.list-2 li{
+	color: #ff5500;
+	padding: 10px 25px;
+	/* border: #8b0000 2px solid; */
+	transition: all 0.3s;
+	font-family: "kaiti";
+	font-size: 1rem;
+	font-weight: bold;	
+	float: none;
+	display: block;
+	z-index: 10;
+}
+
+.list-2 a{
+	background-color: var(--nav-color);
+}
+
+.nav .clear{
+	clear: both;
+}
+
+/* ------------------------------------------------------------------------------------- */
+
+.main-part{
+	width: 100%;
+	height: 533px;
+	/* height: 34%; */
+	/* height: auto; */
+	display: block;
+	position: relative;
+	z-index: 0;
+}
+
+.main-part-clear{
+	width: 100%;
+	height: 10px;
+	clear: both;
+}
+
+.main-part .img {		
+	float: left;
+	width: 68%;
+	height: 100%;
+    overflow: hidden;
+	border: #8b0000 1px solid;
+	position: relative;
+}
+
+.main-part .img img{
+	width: 100%
+}
+
+.main-part .img .slide {
+	width: 100%;
+    position: absolute;
+    opacity: 0;
+    transition: opacity 1s ease-in-out;
+}
+
+.main-part .img-suishi{
+	width: 60%;
+	margin: 10px auto;
+	display: flex;
+}
+
+.main-part .img .slide.active {
+	width: 100%;
+    opacity: 1;
+}
+
+.main-part .text{
+	float: right;
+	height: 100%;
+	width: 30%;
+	border: 2px grey solid;
+	border-radius: 5px;
+	overflow: auto;
+}
+
+.main-part .text h2{
+	text-align: center;
+	font-size: 1.7rem;
+}
+
+.main-part .text p{
+	text-indent: 2rem;
+	font-size: 1.3rem;
+	margin: 20px;
+	line-height: 2rem;
+}
+
+.main-part .text ol{
+	margin: 30px;
+	font-size: 1.3rem;
+	list-style-type: none;
+}
+
+.main-part .this{
+	color: var(--main-red);
+	display: inline;
+}
+
+.main-part .main-part-buttom-list{
+	display: none;
+}
+
+.main-part .text img{
+	transform: translate(5px,5px);
+}
+
+.main-part .clear{
+	clear: both;
+}
+
+
+/* ----------------------------------------------------------------------------- */
+
+.mian-2-part{
+	height: 720px;
+	width: 99.5%;
+	margin: 5px auto;
+	display: inline-block;
+	/* background-color: var(--nav-color); */
+	background-image: linear-gradient(135deg, #fbffe1, #ffe5f5);
+	border: #8b0000 4px double;
+	border-radius: 5px;
+	font-size: 2rem;
+	overflow-y: scroll;
+	overflow-x: hidden;
+/* 	column-count: 2;
+	column-gap: 20px;
+	column-rule: #4e4e4e double;	 */
+	/* 分栏只能水平滚动，无法竖直滚动，这个布局舍弃不要了
+		用下面新的布局方式了，直接分成两个部分
+		适配小屏幕就合并不浮动就行了~
+    */
+}
+
+/* 新增布局方式 */
+/* ----------------- */
+	.mian-2-part .left{
+		float: left;
+		width: 49.5%;
+		margin: 0;
+		border-right: 3px #000 double;
+		
+	}
+	.mian-2-part .right{
+		float: right;
+		width: 50%;
+		margin: 0;
+	}
+
+
+/* ----------------- */
+
+.mian-2-part h2{
+	font-size: 2rem;
+	text-align: center;
+	margin: 2rem 0;
+	font-family: "kaiti";
+}
+
+.mian-2-part p{
+	font-size: 1.4rem;
+	text-indent: 2rem;
+	margin: 20px 35px;
+	font-family: "fangsong";
+	line-height: 2.3rem;
+}
+
+.mian-2-part img{
+	width: 75%;
+	margin: 1rem auto;
+	display: flex;
+	border-radius: 7px;
+	box-shadow: #ddd 8px 8px;
+}
+
+/* ------------------------------------------------------------------------------ */
+
+.footer{
+	margin: 5px auto;
+	height: 50px;
+	width: 100%;
+	display: inline-block;
+	background-color: var(--main-red);
+}
+
+.footer p{
+	color: #FFF;
+	text-align: center;
+	margin: auto 10px;
+}
+
+/* ----------------------------------------------------------------------------- */
+/* 响应式布局 */
+
+/* 移动端适配 - 在原有css底部追加 */
+@media screen and (max-width: 768px) {
+    body {
+        width: 100%;
+        margin: 0;
+        min-width: 320px;
+    }
+
+    /* 头部调整 */
+    .header div h1 {
+        font-size: 2.4rem;
+        margin: 0 5%;
+        text-align: center;
+    }
+
+    /* 导航栏改造为汉堡菜单 */
+    .nav {
+        padding: 8px 0;
+        position: relative;
+    }
+
+    .nav input {
+        display: none;
+    }
+
+    .nav .list {
+        float: none;
+        width: 100%;
+        margin: 0;
+		padding: 0;
+        display: none;
+    }
+
+    .nav .list.active {
+        display: block;
+    }
+
+    .nav .list ul {
+        width: 100%;
+        padding: 0 2px;
+		transform: translate(10px , 5px);
+    }
+
+    .nav .list li {
+        float: none;
+        margin: 2px 0;
+		float: left;
+        position: relative;
+
+    }
+	
+	.nav .list li a{
+		padding: 2px;
+		border: 1px solid var(--dark-red);	
+		position: relative;
+	}
+
+	.nav-content #results{
+		transform: translate(-30px,35px);
+	}
+	
+    .nav .list > li > a {
+        display: block;
+        padding: 2px;
+        border-radius: 5px;
+        text-align: center;
+    }
+
+    .list-2 {
+		position: absolute;
+        width: 150%;
+    }
+
+    .list-2 li {
+        padding: 0px !important;
+		width: 60px;
+		margin: 1px 0;
+    }
+	
+	.list-2 li a{
+		border: none;
+		margin: 1px 0;
+		position: absolute;
+		left: -20px;
+		top: -5px;
+	}
+
+    /* 汉堡菜单按钮 */
+    .menu-toggle {
+        display: block;
+        position: absolute;
+        right: 15px;
+        top: 8px;
+        width: 30px;
+        height: 24px;
+        cursor: pointer;
+    }
+
+    .menu-toggle span {
+        display: block;
+        height: 3px;
+        width: 100%;
+        background: var(--dark-red);
+        margin: 5px 0;
+        transition: 0.3s;
+    }
+
+    .main-part {
+       height: 100px;
+        padding:0;
+    }
+
+    .main-part .img{
+        float: none;
+        width: 100% !important;
+        margin: 2px 0;
+        height: 200px;		
+    }
+
+    .main-part .text {
+		/* float: left; */
+		width: 95%;
+		height: 450px;
+		margin:5px;
+    }
+	
+	.main-part .main-part-buttom-list{
+		display: block;
+	}
+	
+	.main-part .text p, .main-part .text li{
+        margin: 15px 10px;
+        font-size: 0.9rem;	
+			line-height: 1rem;
+	}
+	
+	 .main-part .text li{
+		 margin: 0;
+	 }
+	 
+	 .main-part .text h2{
+		font-size: 1rem;
+		margin: 5px 2px;		 
+	 }
+	 
+	 .main-part .img-suishi{
+		 width: 30%;
+		 display: block;
+		 margin: 10px;
+		 float: left;
+	 }
+
+    .mian-2-part {
+		width: 94%;
+        height: 600px;
+		/* float: right; */
+		margin: 5px;
+        /* column-count: 1; */
+		overflow: auto;
+		transform: translate(5px,0);
+    }
+
+    .mian-2-part p {
+        margin: 15px 10px;
+        font-size: 0.9rem;
+		line-height: 1rem;
+    }
+	
+	/* 新增区域响应式适配 */
+	/* ---------------------- */
+		.mian-2-part .left{
+			float: none;
+			width: 100%;
+			border: none;
+		}
+		.mian-2-part .right{
+			float: none;
+			width: 100%;
+		}	
+		.mian-2-part img{
+			width: 80%;
+			border-radius: 2px;
+			box-shadow: none;
+		}
+	/* ---------------------- */
+		
+    .mian-2-part h2 {
+		font-size: 1.2rem;
+		margin: 5px 2px;
+	}   
+	
+    .footer p {
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+
+    /* 搜索框移动端适配 */
+    #searchInput {
+        width: 80% !important;
+        margin: 0 auto;
+        display: block;
+    }
+
+    #results {
+        width: 80% !important;
+        left: 10% !important;
+    }
+}
+
+/* 移动端专用样式 */
+.mobile-only {
+    display: none;
+}
+
+@media screen and (max-width: 480px) {
+    .header div h1 {
+        font-size: 2rem;
+        padding: 8px 0;
+    }
+
+    .main-part .img {
+        height: 180px;
+    }
+
+    .mian-2-part {
+        font-size: 1rem;
+    }
+
+    .nav .list a {
+        font-size: 1rem;
+    }
+}

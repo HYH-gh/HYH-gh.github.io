@@ -1,0 +1,472 @@
+<!-- <!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>中国红古风反馈页</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            background: url('') center/cover;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: '楷体', cursive;
+        }
+
+        .blur-container {
+            background: rgba(150, 0, 0, 0.3); /* 中国红半透明背景 */
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .card {
+            width: 800px;
+            min-height: 500px;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .left-panel {
+            flex: 1;
+            padding: 30px;
+            background: rgba(150, 0, 0, 0.8);
+            color: gold;
+        }
+
+        .right-panel {
+            flex: 1;
+            padding: 30px;
+            position: relative;
+        }
+
+        .toggle-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #960000;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        input, textarea {
+            padding: 8px;
+            border: 1px solid #960000;
+            border-radius: 4px;
+        }
+
+        .rating {
+            display: flex;
+            gap: 5px;
+        }
+
+        .rating input {
+            display: none;
+        }
+
+        .rating label {
+            font-size: 24px;
+            color: #ccc;
+            cursor: pointer;
+        }
+
+        .rating input:checked ~ label {
+            color: gold;
+        }
+
+        .thanks-content {
+            display: none;
+            height: 400px;
+            overflow-y: auto;
+            line-height: 1.6;
+        }
+
+        #submit-btn {
+            background: #960000;
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="blur-container">
+        <div class="card">
+            <div class="left-panel">
+                <h2>欢迎赐教</h2>
+                <p>尊敬的访客：<br><br>
+                    感谢您驻足于此，<br>
+                    请不吝赐教，<br>
+                    您的建议将如春风化雨，<br>
+                    助我等更上层楼...</p>
+            </div>
+            <div class="right-panel">
+                <button class="toggle-btn" onclick="toggleForm()">谢幕</button>
+                
+                <form id="feedbackForm" onsubmit="handleSubmit(event)">
+                    <input type="hidden" name="author-email" value="author@example.com">
+                    
+                    <label>您的邮箱：
+                        <input type="email" required>
+                    </label>
+                    
+                    <div class="rating">
+                        <span>评分：</span>
+                        <input type="radio" name="rating" id="star5" value="5" required>
+                        <label for="star5">★</label>
+                        <input type="radio" name="rating" id="star4" value="4">
+                        <label for="star4">★</label>
+                        <input type="radio" name="rating" id="star3" value="3">
+                        <label for="star3">★</label>
+                        <input type="radio" name="rating" id="star2" value="2">
+                        <label for="star2">★</label>
+                        <input type="radio" name="rating" id="star1" value="1">
+                        <label for="star1">★</label>
+                    </div>
+                    
+                    <label>反馈内容：
+                        <textarea rows="6" required></textarea>
+                    </label>
+                    
+                    <button type="submit" id="submit-btn">提交反馈</button>
+                </form>
+
+                <div class="thanks-content" id="thanksContent">
+                    
+                    <p>感谢各位的支持...</p>
+                    
+                    <p>感谢一</p><p>感谢二</p><p>感谢三</p><p>感谢四</p><p>感谢五</p>
+                    <p>感谢六</p><p>感谢七</p><p>感谢八</p><p>感谢九</p><p>感谢十</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleForm() {
+            const form = document.getElementById('feedbackForm');
+            const thanks = document.getElementById('thanksContent');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+            thanks.style.display = thanks.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function handleSubmit(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const authorEmail = formData.get('author-email');
+            const userEmail = formData.get('email');
+            const rating = formData.get('rating');
+            const feedback = formData.get('feedback');
+
+            const subject = `用户反馈（评分：${rating}星）`;
+            const body = `用户邮箱：${userEmail}%0D%0A%0D%0A反馈内容：%0D%0A${feedback}`;
+
+            try {
+                window.location.href = `mailto:${authorEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                setTimeout(() => {
+                    if (!document.hidden) {
+                        alert('未检测到邮件客户端，请手动发送邮件至：' + authorEmail);
+                    }
+                }, 500);
+            } catch (e) {
+                alert('邮件发送失败，请检查您的邮件客户端设置');
+            }
+        }
+    </script>
+</body>
+</html> -->
+
+
+
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中国红古风反馈页</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            background: url('your-background-image.jpg') center/cover;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: '楷体', cursive;
+        }
+
+        .blur-container {
+            background: rgba(150, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+            width: 90%;
+            max-width: 1000px;
+        }
+
+        .card {
+            width: 100%;
+            min-height: 500px;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .left-panel {
+            flex: 1;
+            padding: 30px;
+            background: rgba(150, 0, 0, 0.8);
+            color: gold;
+        }
+
+        .right-panel {
+            flex: 1;
+            padding: 30px;
+            position: relative;
+            min-height: 400px;
+        }
+
+        .toggle-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #960000;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            z-index: 2;
+        }
+
+        form, .thanks-content {
+            position: absolute;
+            width: calc(100% - 60px);
+            transition: opacity 0.3s;
+        }
+
+        .thanks-content {
+            display: none;
+            height: 400px;
+            overflow-y: auto;
+            line-height: 1.6;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        input, textarea {
+            padding: 8px;
+            border: 1px solid #960000;
+            border-radius: 4px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .rating {
+            display: flex;
+            gap: 5px;
+            flex-direction: row-reverse;
+            justify-content: flex-end;
+        }
+
+        .rating input {
+            display: none;
+        }
+
+        .rating label {
+            font-size: 24px;
+            color: #ccc;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .rating input:checked ~ label,
+        .rating label:hover,
+        .rating label:hover ~ label {
+            color: gold;
+        }
+
+        #submit-btn {
+            background: #960000;
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            .blur-container {
+                width: 95%;
+                padding: 10px;
+            }
+
+            .card {
+                flex-direction: column;
+                min-height: auto;
+            }
+
+            .left-panel, .right-panel {
+                flex: none;
+                padding: 20px;
+            }
+
+            .right-panel {
+                min-height: 500px;
+            }
+
+            .rating label {
+                font-size: 20px;
+            }
+
+            h2 {
+                font-size: 1.5em;
+            }
+
+            p {
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="blur-container">
+        <div class="card">
+            <div class="left-panel">
+                <h2>欢迎赐教</h2>
+                <p>尊敬的访客：<br><br>
+                    感谢您驻足于此，<br>
+                    请不吝赐教，<br>
+                    您的建议将如春风化雨，<br>
+                    助我等更上层楼...</p>
+            </div>
+            <div class="right-panel">
+                <button class="toggle-btn" onclick="toggleForm()">谢幕</button>
+                
+                <form id="feedbackForm" onsubmit="handleSubmit(event)">
+                    <input type="hidden" name="author-email" value="author@example.com">
+                    
+                    <label>您的邮箱：
+                        <input type="email" name="email" required>
+                    </label>
+                    
+                    <div class="rating">
+                        <input type="radio" name="rating" id="star1" value="1" required>
+                        <label for="star1">★</label>
+                        <input type="radio" name="rating" id="star2" value="2">
+                        <label for="star2">★</label>
+                        <input type="radio" name="rating" id="star3" value="3">
+                        <label for="star3">★</label>
+                        <input type="radio" name="rating" id="star4" value="4">
+                        <label for="star4">★</label>
+                        <input type="radio" name="rating" id="star5" value="5">
+                        <label for="star5">★</label>
+                    </div>
+                    
+                    <label>反馈内容：
+                        <textarea name="feedback" rows="6" required></textarea>
+                    </label>
+                    
+                    <button type="submit" id="submit-btn">提交反馈</button>
+                </form>
+
+                <div class="thanks-content" id="thanksContent">
+                    <h3>感恩致谢</h3>
+                    <p>承蒙诸位厚爱，谨此致谢：</p>
+                    <p>感谢一：风雨同舟，携手共进</p>
+                    <p>感谢二：金石良言，铭记于心</p>
+                    <p>感谢三：春华秋实，不负耕耘</p>
+                    <p>感谢四：高山流水，知音难觅</p>
+                    <p>感谢五：继往开来，再续华章</p>
+                    <p>承蒙诸位厚爱，谨此致谢：</p>
+                    <p>感谢一：风雨同舟，携手共进</p>
+                    <p>感谢二：金石良言，铭记于心</p>
+                    <p>感谢三：春华秋实，不负耕耘</p>
+                    <p>感谢四：高山流水，知音难觅</p>
+                    <p>感谢五：继往开来，再续华章</p>
+                    <p>承蒙诸位厚爱，谨此致谢：</p>
+                    <p>感谢一：风雨同舟，携手共进</p>
+                    <p>感谢二：金石良言，铭记于心</p>
+                    <p>感谢三：春华秋实，不负耕耘</p>
+                    <p>感谢四：高山流水，知音难觅</p>
+                    <p>感谢五：继往开来，再续华章</p>
+                    <p>承蒙诸位厚爱，谨此致谢：</p>
+                    <p>感谢一：风雨同舟，携手共进</p>
+                    <p>感谢二：金石良言，铭记于心</p>
+                    <p>感谢三：春华秋实，不负耕耘</p>
+                    <p>感谢四：高山流水，知音难觅</p>
+                    <p>感谢五：继往开来，再续华章</p>										
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleForm() {
+            const form = document.getElementById('feedbackForm');
+            const thanks = document.getElementById('thanksContent');
+            const isFormVisible = form.style.display !== 'none';
+            
+            form.style.display = isFormVisible ? 'none' : 'block';
+            thanks.style.display = isFormVisible ? 'block' : 'none';
+        }
+
+        function handleSubmit(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const authorEmail = formData.get('author-email');
+            const userEmail = formData.get('email');
+            const rating = formData.get('rating');
+            const feedback = formData.get('feedback');
+
+            const subject = `用户反馈（评分：${rating}星）`;
+            const body = `用户邮箱：${userEmail}%0D%0A%0D%0A反馈内容：%0D%0A${feedback}`;
+
+            try {
+                const mailtoLink = `mailto:${authorEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                
+                // 尝试打开邮件客户端
+                window.location.href = mailtoLink;
+                
+                // 检测是否成功打开
+                setTimeout(() => {
+                    if (!document.hidden) {
+                        alert('未检测到邮件客户端，请手动发送邮件至：' + authorEmail);
+                    }
+                }, 500);
+            } catch (e) {
+                alert('邮件发送失败，请检查您的邮件客户端设置');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>联系作者</title>
+    <style>
+        .form-container { max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[readonly] { 
+            background-color: #f5f5f5; 
+            cursor: not-allowed; 
+            border-color: #ddd;
+        }
+        .hint { color: #666; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <form id="emailForm">
+            <!-- 隐藏的真实收件人字段 -->
+            <input type="hidden" id="realRecipient" name="recipient">
+            
+            <div class="input-group">
+                <label>收件邮箱：</label>
+                <input type="email" id="displayRecipient" readonly 
+                       placeholder="正在加载作者邮箱...">
+                <p class="hint">（此邮件将直接发送给作者，无需修改收件地址）</p>
+            </div>
+            
+            <div class="input-group">
+                <label for="content">邮件内容：</label>
+                <textarea id="content" rows="5" required 
+                          placeholder="请输入您的留言内容"></textarea>
+            </div>
+
+            <button type="submit">发送邮件</button>
+        </form>
+    </div>
+
+    <script>
+        // 动态设置作者邮箱（避免源码直接暴露）
+        window.addEventListener('DOMContentLoaded', () => {
+            const encodedEmail = 'MzI3ODQwMjc3NEBxcS5jb20='; // Base64编码的邮箱
+            const realEmail = atob(encodedEmail);
+            
+            document.getElementById('displayRecipient').value = realEmail;
+            document.getElementById('realRecipient').value = realEmail;
+        });
+
+        // 提交处理
+        document.getElementById('emailForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const content = document.getElementById('content').value.trim();
+            const realEmail = document.getElementById('realRecipient').value;
+
+            // 构建mailto链接
+            const subject = encodeURIComponent('读者来信');
+            const body = encodeURIComponent(content);
+            window.location.href = `mailto:${realEmail}?subject=${subject}&body=${body}`;
+        });
+    </script>
+</body>
+</html>

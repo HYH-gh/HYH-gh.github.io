@@ -1,0 +1,533 @@
+*{
+	margin: 0;
+	padding: 0;
+	/* font-size: 62.5%; */
+	/* box-sizing: border-box; */
+	font-family: '微软雅黑', '华文行楷', sans-serif;
+}
+	
+ul li{
+	list-style: none;
+}
+
+a{
+	text-decoration: none;
+}
+
+:root {
+    --main-red:#d63235;  
+    --gold: #ffd700;    
+    --dark-red: #8b0000;
+	--sun-red: #ffac85
+    --light-bg: #fff4e9; 
+	--orninge:#ffc246;
+	--nav-color:#fff9c5;
+}
+	
+body{
+	background-color: var(--light-bg);
+	width: 80%;
+	margin: 5px auto;
+	position: relative;
+}
+
+.header{
+	width: 100%;
+	background-color: var(--main-red);
+}
+
+.header div h1{
+	font-size: 3.2rem;
+	color: var(--gold);
+	text-shadow: 2px 2px var(--dark-red);
+	margin: 0 10%;
+}
+
+/* ------------------------------------------------------------------------------------- */
+
+.nav{
+	width: 100%;
+	height: 40%;
+	padding: 15px 0;
+	display: inline-block;
+	background-color: var(--nav-color);
+	position: -webkit-sticky;
+	position: sticky;
+	top: 0;
+	z-index: 5;
+}
+
+.nav .nav-content{
+	width: 80%;
+	margin: 0px auto;
+	position: relative;
+}
+
+.nav input{
+	float: left;
+	margin: auto 0;
+	width: 250px;
+	height: 30px;
+	border: #ffd700 2px solid;
+	border-radius: 6px;
+	box-shadow: 2px 2px #8b0000;
+	text-indent: 1rem;
+}
+
+/* --------------------------- */
+/* 搜索待选栏样式 */
+
+#results{
+	width: 253px;
+	display:block;
+/*    border: 2px solid #ddd; */
+	border-radius: 5px;
+	position: absolute;	
+	transform: translate(0px, 35px);
+    background-color: var(--orninge);	
+}
+
+.result-item { 
+    margin: 0;
+    padding: 2px;   
+    cursor: pointer; /* 鼠标悬停手型 */
+	z-index: 10;	
+}
+
+.result-item h3{
+	font-size: 16px;
+}
+
+.result-item p{
+	font-size: 10px;
+}
+
+.result-item:hover {
+  background-color: #f5f5f5; /* 悬停背景色 */
+}
+mark {
+	color: red; 
+}
+/* --------------------------- */
+
+.nav .list {
+	float: right;
+	/* width: 40%; */
+	/* margin: auto 10%; */
+	margin: 8px 0;
+	position: relative;
+	display: flex;
+	flex-wrap: nowrap;
+	/* overflow-x: auto; */
+}
+
+.nav .list ul{
+	float: right;
+	margin: 0;
+}
+
+.nav .list li{
+	float: left;
+	/* margin: 0 6px; */
+	margin: auto 0;
+	display: inline;
+}
+
+.nav .list a {
+    color: #ff5500;
+    text-decoration: none;
+    padding: 10px 10px;
+	border: #8b0000 1.5px solid;
+    /* border-radius: 3px; */
+    transition: all 0.3s;
+	font-family: "kaiti";
+	font-size: 1.3rem;
+	font-weight: bold;
+}
+
+.nav .list-2{
+	display: none;
+	float: none;
+	position: absolute;
+	width: 50%;
+	transform:translate(-35px,10px);
+	z-index: 10;
+}
+
+.nav .list a:hover {
+    background: var(--dark-red);
+	color: white;
+	font-weight: normal;
+	font-family: "fangsong";
+	z-index: 10;
+}
+
+.nav .list li:hover .list-2 , .list-2:hover{
+	display: block;
+}
+
+.list-2 li{
+	color: #ff5500;
+	padding: 10px 25px;
+	/* border: #8b0000 2px solid; */
+	transition: all 0.3s;
+	font-family: "kaiti";
+	font-size: 1rem;
+	font-weight: bold;	
+	float: none;
+	display: block;
+	z-index: 10;
+}
+
+.list-2 a{
+	background-color: var(--nav-color);
+}
+
+.nav .clear{
+	clear: both;
+}
+
+
+
+/* ---------------------------------------------------------------- */
+
+
+.main-part{
+	border: gray 2px solid;
+	box-shadow: 5px 5px 2px #DDD;
+	border-radius: 4px;
+	background-image: linear-gradient(135deg, #fcffee, #ffeff9);
+	width: 98%;
+	padding: 10px;
+}
+
+.main-part-content{
+	width: 85%;
+	margin: 3rem auto;
+}
+
+.main-part .title-img{
+	width: 20%;
+	float: left;
+	margin: 20px;
+}
+
+.main-part h2{
+	text-align: center;
+	font-size: 2rem;
+	text-shadow: 2px 2px 1px #DDD;
+}
+
+.main-part h3{
+	text-align: center;	
+	transform: translate(15%,0);
+	font-size: 1.5rem;
+	text-shadow: 2px 2px 1px #DDD;
+}
+
+.main-part h4{
+	font-size: 1.5rem;
+}
+
+.main-part p{
+	font-size: 1.3rem;
+	text-indent: 2rem;
+}
+
+.main-part .side-list{
+	border: 3px #000 double;
+	border-radius: 5px;
+	margin: 1rem;
+	width: 40%;
+	float: right;
+	padding: 1rem;
+}
+
+.main-part .side-list h4{
+	text-align: center;
+}
+
+.main-part .side-list h5{
+	font-size: 1.5rem;
+	font-family: "kaiti";
+}
+
+
+.main-part .side-list p{
+	font-size: 1.5rem;
+	font-family: "fangsong";
+}
+
+.main-part .side-list .introduction{
+	font-family: "weiruanyahei";
+	font-size: 1.2rem;
+}
+
+.main-img-01{
+	width: 50%;
+	border-radius: 5px;
+	float: left;
+}
+
+.clear{
+	width: 100%;
+	clear: both;
+}
+
+
+.main-part .bottom-img{
+	width: 100%;
+	height: 300px;
+	margin: 3rem 0 0 0;
+}
+
+.bottom-img .b-i-02{
+	width: 49.5%;
+	height: 100%;
+	float: left;
+	box-shadow: 5px 5px 0 #DDD;	
+}
+
+
+.bottom-img .b-i-03{
+	width: 49.5%;
+	height: 100%;
+	float: right;
+	box-shadow: 5px 5px 0 #DDD;	
+}
+
+
+
+
+/* ---------------------------------------------------------------------------- */
+
+.footer{
+	margin: 5px auto;
+	height: 50px;
+	width: 100%;
+	display: inline-block;
+	background-color: var(--main-red);
+}
+
+.footer p{
+	color: #FFF;
+	text-align: center;
+	margin: auto 10px;
+}
+
+
+
+/* -----------------------响应式布局--------------------------- */
+
+
+
+/* 移动端适配 - 在原有css底部追加 */
+@media screen and (max-width: 768px) {
+    body {
+        width: 100%;
+        margin: 0;
+        min-width: 320px;
+    }
+
+    /* 头部调整 */
+    .header div h1 {
+        font-size: 2.4rem;
+        margin: 0 5%;
+        text-align: center;
+    }
+
+    /* 导航栏改造为汉堡菜单 */
+    .nav {
+        padding: 8px 0;
+        position: relative;
+    }
+
+    .nav input {
+        display: none;
+    }
+
+    .nav .list {
+        float: none;
+        width: 100%;
+        margin: 0;
+		padding: 0;
+        display: none;
+    }
+
+    .nav .list.active {
+        display: block;
+    }
+
+    .nav .list ul {
+        width: 100%;
+        padding: 0 2px;
+		transform: translate(10px , 5px);
+    }
+
+    .nav .list li {
+        float: none;
+        margin: 2px 0;
+		float: left;
+        position: relative;
+
+    }
+	
+	.nav .list li a{
+		padding: 2px;
+		border: 1px solid var(--dark-red);	
+		position: relative;
+	}
+
+    .nav .list > li > a {
+        display: block;
+        padding: 2px;
+        border-radius: 5px;
+        text-align: center;
+    }
+
+    .list-2 {
+		position: absolute;
+        width: 150%;
+    }
+
+    .list-2 li {
+        padding: 0px !important;
+		width: 60px;
+		margin: 1px 0;
+    }
+	
+	.list-2 li a{
+		border: none;
+		margin: 1px 0;
+		position: absolute;
+		left: -20px;
+		top: -5px;
+	}
+	
+	.clear{
+		height: 0;
+	}
+
+    /* 汉堡菜单按钮 */
+    .menu-toggle {
+        display: block;
+        position: absolute;
+        right: 15px;
+        top: 8px;
+        width: 30px;
+        height: 24px;
+        cursor: pointer;
+    }
+
+    .menu-toggle span {
+        display: block;
+        height: 3px;
+        width: 100%;
+        background: var(--dark-red);
+        margin: 5px 0;
+        transition: 0.3s;
+    }
+
+    .main-part{
+		width: 98.5%;
+		margin: 0;
+		padding: 0;
+		box-shadow: none;
+	}
+	
+	.main-part-content{
+		width: 90%;
+		margin: 0 auto;
+	}
+	
+	.main-part-content .title-img{
+		margin: 0;
+		width: 40%;
+	}
+	
+	.main-part-content h2{
+		font-size: 1.5rem;
+	}
+	
+	.main-part-content h3{
+		font-size: 0.8rem;
+	}	
+	
+	.main-part-content h4{
+		font-size: 1rem;
+	}	
+	
+	.main-part-content p{
+		font-size: 0.9rem;
+	}	
+	
+	.main-part-content .side-list{
+		width: 90%;
+		margin: 5px 0;
+	}
+	
+	.main-part-content .side-list .introduction{
+		font-size: 0.6rem;
+	}	
+	
+	.main-part-content .side-list h5{
+		font-size: 1rem;
+	}	
+	
+	.main-part-content .side-list p{
+		font-size: 0.9rem;
+	}	
+	
+	.main-part-content .main-img-01{
+		width: 100%;
+		margin: 10px auto;
+	}
+	
+	.main-part-content .bottom-img{
+		height: 400px;
+	}
+	
+	.main-part-content .b-i-02, .main-part-content .b-i-03{
+		width: 105%;
+		height: 50%;
+		float: none;
+		margin: 0px auto;
+		position: relative;
+		box-shadow: none;
+		transform: translate(-10px, -10px);
+	}
+	
+    .footer p {
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+
+    /* 搜索框移动端适配 */
+    #searchInput {
+        width: 80% !important;
+        margin: 0 auto;
+        display: block;
+    }
+
+    #results {
+        width: 80% !important;
+        left: 10% !important;
+		transform: translate(-28px, 38px);
+    }
+}
+
+/* 移动端专用样式 */
+.mobile-only {
+    display: none;
+}
+
+@media screen and (max-width: 480px) {
+    .header div h1 {
+        font-size: 2rem;
+        padding: 8px 0;
+    }
+
+    .nav .list a {
+        font-size: 1rem;
+    }
+}

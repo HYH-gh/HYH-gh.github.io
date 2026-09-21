@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>用户反馈</title>
+  <style>
+    .form { max-width: 500px; margin: 20px; }
+    input, textarea { width: 100%; margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <div class="form">
+    <input type="email" id="userEmail" placeholder="您的邮箱">
+    <textarea id="feedback" placeholder="反馈内容"></textarea>
+    <button onclick="sendFeedback()">提交反馈</button>
+  </div>
+
+
+<a href="3278402774@qq.com?subject=用户反馈&body=请详细描述问题&cc=YSHYH@outlook.com">发送邮件</a>
+
+
+  <script>
+	  if (!/mailto:/i.test(navigator.userAgent)) {
+	    alert('请先安装本地邮件客户端（如Outlook）或使用Web邮箱发送。');
+	  }
+    function sendFeedback() {
+      const email = document.getElementById('userEmail').value;
+      const feedback = document.getElementById('feedback').value;
+      if (!email || !feedback) {
+        alert('请填写邮箱和内容！');
+        return;
+      }
+      const subject = '用户反馈 - ' + new Date().toLocaleDateString();
+      const body = `用户邮箱：${email}\n反馈内容：${feedback}`;
+      const url = `3278402774@qq.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.location.href = url;
+    }
+  </script>
+</body>
+</html>

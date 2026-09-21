@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+	input{
+		position: relative;
+		
+	}
+    .result-item { 
+      margin: 2px; 
+      padding: 2px; 
+      border: 1px solid #ddd; 
+	  display: block;
+	  width: 30%;
+      cursor: pointer; /* 鼠标悬停手型 */
+    }
+	.result-item h3{
+		font-size: 16px;
+	}
+	
+	.result-item p{
+		font-size: 10px;
+	}
+	
+    .result-item:hover {
+      background-color: #f5f5f5; /* 悬停背景色 */
+    }
+    mark {
+		color: red; 
+	}
+	
+	/* -------------------------------------------------------- */
+	/* 移动端隐藏主内容 */
+	@media screen and (max-width: 768px) {
+	    .desktop-content { display: none; }
+	    .mobile-alert { display: block; }
+	}
+  </style>
+</head>
+<body>
+	
+	<!-- HTML直接调用 -->
+	<div class="desktop-content">电脑</div>
+	<div class="mobile-alert">手机</div>
+	
+  <input type="text" id="searchInput" placeholder="输入关键词搜索...">
+  <div id="results"></div>
+  <script src="js/search.js"></script>
+  <script>// 检测屏幕宽度且排除移动设备触控支持
+if (window.screen.width <= 768 && ('ontouchstart' in window)) {
+    alert("请使用电脑访问");
+    window.location.href = "about:blank"; // 阻止访问
+}</script>
+</body>
+</html>

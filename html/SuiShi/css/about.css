@@ -1,0 +1,193 @@
+body{
+	margin: 0;
+}
+
+.body {
+    margin: 0;
+    height: 95vh;
+	min-height: 400px;
+    background: url('../res/img/about.webp') center/cover;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: '楷体', cursive;
+}
+
+a{
+	text-decoration: none;
+}
+
+.header{
+	width: 100%;
+	background-color: #960000;
+	margin: 0;
+}
+
+.header div a{
+	font-size: 2.5rem;
+	color: #ffd700;
+	text-shadow: 2px 2px #8b0000;
+	font-weight: bold;
+	margin: 0 10%;
+}
+
+
+.blur-container {
+    background: rgba(150, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    max-width: 1000px;
+}
+.card {
+    width: 100%;
+    min-height: 500px;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+}
+.left-panel {
+    flex: 1;
+    padding: 30px;
+    background: rgba(150, 0, 0, 0.8);
+    color: gold;
+}
+
+.left-panel h2{
+	font-size: 2rem;
+}
+
+.left-panel p{
+	font-size: 1.2rem;
+}
+
+.left-panel .QR img{
+	width: 100px;
+	margin: 0 auto;
+	display: block;
+}
+
+.left-panel .QR p{
+	text-align: center;
+}
+
+.right-panel {
+    flex: 1;
+    padding: 30px;
+    position: relative;
+    min-height: 400px;
+}
+.toggle-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #960000;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    z-index: 2;
+}
+form, .thanks-content {
+    position: absolute;
+    width: calc(100% - 60px);
+    transition: opacity 0.3s;
+}
+.thanks-content {
+    display: none;
+    height: 400px;
+    overflow-y: auto;
+    line-height: 1.6;
+	text-align: center;
+}
+
+.thanks-content a{
+	color: blue;
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+input, textarea {
+    padding: 8px;
+    border: 1px solid #960000;
+    border-radius: 4px;
+    width: 100%;
+    box-sizing: border-box;
+}
+.rating {
+    display: flex;
+    gap: 5px;
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+}
+.rating input {
+    display: none;
+}
+.rating label {
+    font-size: 24px;
+    color: #ccc;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+.rating input:checked ~ label,
+.rating label:hover,
+.rating label:hover ~ label {
+    color: gold;
+}
+
+#submit-btn, #exit{
+    background: #960000;
+    color: white;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+@media (max-width: 768px) {
+	
+	.header{
+		display: none;
+	}
+	
+    .blur-container {
+        width: 95%;
+        padding: 10px;
+    }
+    .card {
+        flex-direction: column;
+        min-height: auto;
+    }
+    .left-panel, .right-panel {
+        flex: none;
+        padding: 20px;
+    }
+    .right-panel {
+        min-height: 500px;
+    }
+    .rating label {
+        font-size: 20px;
+    }
+    h2 {
+        font-size: 1.5em;
+    }
+    p {
+        font-size: 0.9em;
+    }
+	
+	.left-panel .QR{
+		display: none;
+	}
+	
+	.left-panel p{
+		font-size: 1.0rem;
+	}
+}

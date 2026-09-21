@@ -2,11 +2,11 @@
   {
     "name": "2048 游戏",
     "path": "html/2048/index.html",
-    "icon": "&#9883;"
+    "type": "path"
   },
   {
     "name": "UMLite 工具",
     "path": "html/UMLite/index.html",
-    "icon": "&#128214;"
+    "type": "path"
   }
 ]

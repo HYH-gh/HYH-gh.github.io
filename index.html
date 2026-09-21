@@ -1,616 +1,224 @@
 <!DOCTYPE html>
-<html lang="zh-CN" class="theme-dark">
+<html lang="zh-CN" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>导航中心</title>
-    <!-- Vue 3 -->
-    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-    <!-- WinUI on Web 样式 -->
-    <link rel="stylesheet" href="packages/WinUiOnWeb/winuionweb.css" />
-    <style>
-        /* ===== Reset & Base ===== */
-        *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
-        body {
-            min-height: 100vh;
-            background: var(--FillColorTransparentBackground, #0f0c29);
-            background-image: radial-gradient(ellipse at 20% 50%, rgba(247,151,30,0.06) 0%, transparent 60%),
-                              radial-gradient(ellipse at 80% 20%, rgba(240,147,251,0.05) 0%, transparent 50%);
-        }
-        html.theme-dark body { background:#0d0d1a; }
-
-        /* ===== Scrollbar ===== */
-        ::-webkit-scrollbar { width:6px; }
-        ::-webkit-scrollbar-track { background:transparent; }
-        ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.12); border-radius:3px; }
-
-        /* ===== App Wrapper ===== */
-        #app {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* ===== Header ===== */
-        .app-header {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            backdrop-filter: blur(20px);
-            background: rgba(0,0,0,0.3);
-            border-bottom: 1px solid rgba(255,255,255,0.06);
-        }
-        .app-header .header-inner {
-            max-width: 1100px;
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 16px 24px;
-        }
-        .header-title {
-            font-size: 22px;
-            font-weight: 700;
-            letter-spacing: 1px;
-            background: linear-gradient(90deg, #f7971e, #ffd200);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .admin-badge-text {
-            font-size: 12px;
-            color: #ffd200;
-            background: rgba(255,210,0,0.12);
-            padding: 2px 10px;
-            border-radius: 20px;
-            border: 1px solid rgba(255,210,0,0.15);
-        }
-
-        /* ===== Hero ===== */
-        .hero-section {
-            text-align: center;
-            padding: 64px 24px 48px;
-        }
-        .hero-title {
-            font-size: 42px;
-            font-weight: 800;
-            line-height: 1.3;
-            background: linear-gradient(135deg, #f093fb, #f5576c, #f7971e);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        .hero-sub {
-            margin-top: 12px;
-            font-size: 16px;
-            opacity: 0.5;
-        }
-
-        /* ===== Card Grid ===== */
-        .card-grid {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 0 24px 100px;
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-            gap: 20px;
-        }
-        .card-grid-empty {
-            grid-column: 1 / -1;
-            text-align: center;
-            padding: 60px 20px;
-            opacity: 0.3;
-            border: 2px dashed rgba(255,255,255,0.08);
-            border-radius: 16px;
-        }
-
-        /* ===== Navigation Card ===== */
-        .nav-card {
-            position: relative;
-            background: rgba(255,255,255,0.04) !important;
-            border: 1px solid rgba(255,255,255,0.08);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            overflow: hidden;
-            user-select: none;
-        }
-        .nav-card::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            border-radius: inherit;
-            opacity: 0;
-            background: linear-gradient(135deg, rgba(247,151,30,0.08), rgba(255,210,0,0.04));
-            transition: opacity 0.3s ease;
-            pointer-events: none;
-        }
-        .nav-card:hover {
-            transform: translateY(-6px);
-            border-color: rgba(247,151,30,0.3) !important;
-            box-shadow: 0 12px 40px rgba(0,0,0,0.4);
-        }
-        .nav-card:hover::before { opacity:1; }
-        .nav-card .card-content {
-            position: relative;
-            z-index: 1;
-        }
-        .nav-card .card-icon {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            margin-bottom: 14px;
-            background: linear-gradient(135deg, rgba(247,151,30,0.2), rgba(255,210,0,0.1));
-        }
-        .nav-card .card-title-text {
-            color: #fff;
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 4px;
-        }
-        .nav-card .card-path-text {
-            font-size: 13px;
-            opacity: 0.35;
-            font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-        }
-        .nav-card .card-arrow {
-            position: absolute;
-            right: 20px;
-            bottom: 16px;
-            font-size: 20px;
-            opacity: 0.2;
-            transition: all 0.3s ease;
-        }
-        .nav-card:hover .card-arrow {
-            opacity: 1;
-            color: #ffd200;
-            transform: translateX(4px);
-        }
-
-        /* ===== Card Admin Actions (hover) ===== */
-        .card-admin-trigger {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            z-index: 5;
-            opacity: 0;
-            transition: opacity 0.2s ease;
-        }
-        .nav-card:hover .card-admin-trigger { opacity: 1; }
-        .card-admin-trigger .action-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 28px;
-            height: 28px;
-            border-radius: 6px;
-            border: none;
-            background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(4px);
-            color: rgba(255,255,255,0.7);
-            font-size: 13px;
-            cursor: pointer;
-            transition: all 0.15s ease;
-            margin-left: 4px;
-        }
-        .card-admin-trigger .action-btn:hover { color:#fff; }
-        .card-admin-trigger .action-btn.edit-btn { color:#60a5fa; }
-        .card-admin-trigger .action-btn.edit-btn:hover { background:rgba(96,165,250,0.25); }
-        .card-admin-trigger .action-btn.del-btn { color:#ef4444; }
-        .card-admin-trigger .action-btn.del-btn:hover { background:rgba(239,68,68,0.25); }
-
-        /* ===== Custom Modal Overlay (for complex dialogs) ===== */
-        .modal-overlay {
-            position: fixed;
-            inset: 0;
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(6px);
-            animation: fadeIn 0.15s ease;
-        }
-        .modal-overlay > div {
-            animation: slideUp 0.2s ease;
-        }
-        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
-        @keyframes slideUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
-
-        /* ===== Admin List ===== */
-        .admin-list-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 10px 14px;
-            border-radius: 10px;
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.06);
-        }
-
-        /* ===== Responsive ===== */
-        @media (max-width:640px) {
-            .hero-title { font-size: 28px; }
-            .hero-section { padding:40px 16px 32px; }
-            .card-grid { padding:0 16px 80px; grid-template-columns:1fr; }
-            .app-header .header-inner { padding:12px 16px; }
-        }
-    </style>
+    <title>导航主页</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <div id="app">
-        <!-- ===== Header ===== -->
-        <div class="app-header">
-            <div class="header-inner">
-                <span class="header-title">◊ 导航中心</span>
-                <div class="header-actions">
-                    <span v-if="isAdmin" class="admin-badge-text">管理员</span>
-                    <win-button :content="isAdmin ? '管理导航' : '管理员登录'"
-                                @Click="isAdmin ? openAdmin() : (showLogin=true)"></win-button>
-                </div>
+    <div class="app-bg"></div>
+
+    <header class="header">
+        <div class="header-left">
+            <svg class="logo-icon" viewBox="0 0 32 32" width="28" height="28">
+                <rect x="2" y="2" width="12" height="12" rx="3" fill="var(--accent)"/>
+                <rect x="18" y="2" width="12" height="12" rx="3" fill="var(--accent)" opacity="0.6"/>
+                <rect x="2" y="18" width="12" height="12" rx="3" fill="var(--accent)" opacity="0.6"/>
+                <rect x="18" y="18" width="12" height="12" rx="3" fill="var(--accent)" opacity="0.35"/>
+            </svg>
+            <span class="header-title">导航中心</span>
+        </div>
+        <div class="header-right">
+            <span class="admin-tag" id="adminBadge">管理员</span>
+            <button class="header-btn" id="themeToggle" title="切换主题" onclick="toggleTheme()">
+                <svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18">
+                    <circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <line x1="12" y1="1" x2="12" y2="4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="12" y1="20" x2="12" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="20" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="1" y1="12" x2="4" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="4.22" y1="4.22" x2="6.34" y2="6.34" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="17.66" y1="17.66" x2="19.78" y2="19.78" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="4.22" y1="19.78" x2="6.34" y2="17.66" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="19.78" y1="4.22" x2="17.66" y2="6.34" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <button class="header-btn" id="adminBtn" onclick="toggleLogin()">管理员登录</button>
+        </div>
+    </header>
+
+    <main class="main">
+        <section class="hero">
+            <h2 class="hero-title">快速导航</h2>
+            <p class="hero-sub">选择项目开始探索</p>
+        </section>
+        <div class="nav-grid" id="navGrid"></div>
+    </main>
+
+    <!-- Login Modal -->
+    <div class="modal-overlay" id="loginModal">
+        <div class="modal">
+            <div class="modal-icon">
+                <svg viewBox="0 0 24 24" width="28" height="28">
+                    <circle cx="12" cy="8" r="4" fill="none" stroke="var(--accent)" stroke-width="2"/>
+                    <path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <div class="modal-title">管理员登录</div>
+            <div class="form-group">
+                <label>账号</label>
+                <input type="text" id="loginUser" placeholder="请输入管理员账号" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="loginPass" placeholder="请输入密码" onkeydown="if(event.key==='Enter') doLogin()">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('loginModal')">取消</button>
+                <button class="btn btn-accent" onclick="doLogin()">登录</button>
             </div>
         </div>
-
-        <!-- ===== Hero ===== -->
-        <div class="hero-section">
-            <div class="hero-title">探索 · 发现 · 创造</div>
-            <div class="hero-sub">选择一个项目开始你的旅程</div>
-        </div>
-
-        <!-- ===== Card Grid ===== -->
-        <div class="card-grid">
-            <template v-if="navItems.length === 0">
-                <div class="card-grid-empty">暂无导航项，管理员登录后可添加</div>
-            </template>
-            <template v-for="(item, index) in navItems" :key="index">
-                <win-border class="nav-card" CornerRadius="16" Padding="24,20"
-                            @Click="navigate(item.path)">
-                    <!-- Admin hover actions -->
-                    <div v-if="isAdmin" class="card-admin-trigger">
-                        <button class="action-btn edit-btn" title="编辑" @click.stop="openItemEditor(index)">&#9998;</button>
-                        <button class="action-btn del-btn" title="删除" @click.stop="confirmDelete(index)">&#10005;</button>
-                    </div>
-                    <!-- Card content -->
-                    <div class="card-content">
-                        <div class="card-icon">◈</div>
-                        <div class="card-title-text">{{ item.name }}</div>
-                        <div class="card-path-text">{{ item.path }}</div>
-                    </div>
-                    <div class="card-arrow">→</div>
-                </win-border>
-            </template>
-        </div>
-
-        <!-- ===== InfoBar Toast ===== -->
-        <div style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:2000;pointer-events:none;">
-            <win-info-bar v-if="toast.show"
-                          :Title="toast.title"
-                          :Message="toast.message"
-                          :Severity="toast.severity"
-                          :IsOpen="toast.show"
-                          IsClosable
-                          @Update:IsOpen="toast.show = $event"
-                          style="pointer-events:auto;min-width:300px;max-width:480px;"></win-info-bar>
-        </div>
-
-        <!-- ===== Login ContentDialog ===== -->
-        <win-content-dialog v-model:IsOpen="showLogin"
-                            Title="管理员登录"
-                            PrimaryButtonText="登录"
-                            SecondaryButtonText="取消"
-                            @PrimaryButtonClick="doLogin"
-                            @SecondaryButtonClick="showLogin=false">
-            <win-stack-panel spacing="12">
-                <win-text-box v-model:Text="loginUser" PlaceholderText="请输入管理员账号"></win-text-box>
-                <win-password-box v-model:Password="loginPass" PlaceholderText="请输入密码"></win-password-box>
-            </win-stack-panel>
-        </win-content-dialog>
-
-        <!-- ===== Delete Confirm ContentDialog ===== -->
-        <win-content-dialog v-model:IsOpen="showDeleteConfirm"
-                            Title="确认删除"
-                            :Content="'确定要删除「' + deleteTargetName + '」吗？此操作不可撤销。'"
-                            PrimaryButtonText="删除"
-                            SecondaryButtonText="取消"
-                            @PrimaryButtonClick="doDelete"
-                            @SecondaryButtonClick="showDeleteConfirm=false"></win-content-dialog>
-
-        <!-- ===== Admin Panel (custom modal, complex content) ===== -->
-        <div v-if="showAdmin" class="modal-overlay" @click.self="showAdmin=false">
-            <win-border CornerRadius="16" Padding="28" Background="rgba(25,25,45,0.95)"
-                        BorderThickness="1" BorderBrush="rgba(255,255,255,0.08)"
-                        style="width:90%;max-width:520px;max-height:80vh;overflow-y:auto;">
-                <win-stack-panel spacing="16">
-                    <win-text-block text="管理导航" FontSize="22" FontWeight="Bold"></win-text-block>
-
-                    <!-- Toolbar -->
-                    <win-stack-panel orientation="Horizontal" spacing="8" style="flex-wrap:wrap;">
-                        <win-button content="+ 添加" Style="Accent" @Click="openItemEditor(-1)"></win-button>
-                        <win-button content="导出配置" @Click="exportConfig"></win-button>
-                        <win-button content="导入配置" @Click="triggerImport"></win-button>
-                        <win-button content="退出管理" @Click="doLogout"></win-button>
-                    </win-stack-panel>
-
-                    <!-- Item list -->
-                    <div v-if="navItems.length === 0" style="text-align:center;padding:24px 0;opacity:0.4;">
-                        <win-text-block text="暂无导航项" FontSize="14"></win-text-block>
-                    </div>
-                    <div v-for="(item, i) in navItems" :key="i" class="admin-list-item">
-                        <div>
-                            <win-text-block :text="item.name" FontSize="14" FontWeight="SemiBold"></win-text-block>
-                            <win-text-block :text="item.path" FontSize="12" Opacity="0.4"></win-text-block>
-                        </div>
-                        <win-stack-panel orientation="Horizontal" spacing="6">
-                            <win-button content="编辑" @Click="openItemEditor(i)"></win-button>
-                            <win-button content="删除" @Click="confirmDelete(i)"></win-button>
-                        </win-stack-panel>
-                    </div>
-
-                    <!-- Hint -->
-                    <win-text-block text="修改后点击「导出配置」下载 nav.json，替换项目中的 data/nav.json 并提交 Git 即可同步到所有人"
-                                    FontSize="12" Opacity="0.25" TextWrapping="Wrap"></win-text-block>
-
-                    <div style="text-align:right;">
-                        <win-button content="关闭" @Click="showAdmin=false"></win-button>
-                    </div>
-                </win-stack-panel>
-            </win-border>
-        </div>
-
-        <!-- ===== Add / Edit Item Modal ===== -->
-        <div v-if="showItemEditor" class="modal-overlay" @click.self="showItemEditor=false">
-            <win-border CornerRadius="16" Padding="28" Background="rgba(25,25,45,0.95)"
-                        BorderThickness="1" BorderBrush="rgba(255,255,255,0.08)"
-                        style="width:90%;max-width:420px;">
-                <win-stack-panel spacing="16">
-                    <win-text-block :text="editingIndex === -1 ? '添加导航项' : '编辑导航项'" FontSize="22" FontWeight="Bold"></win-text-block>
-                    <win-text-box v-model:Text="itemName" PlaceholderText="例如：诗词浏览"></win-text-box>
-                    <win-text-box v-model:Text="itemPath" PlaceholderText="例如：poetry/index.html"></win-text-box>
-                    <win-stack-panel orientation="Horizontal" horizontal-alignment="Right" spacing="8">
-                        <win-button content="取消" @Click="showItemEditor=false"></win-button>
-                        <win-button content="保存" Style="Accent" @Click="saveItem"></win-button>
-                    </win-stack-panel>
-                </win-stack-panel>
-            </win-border>
-        </div>
-
-        <!-- ===== Hidden file input for import ===== -->
-        <input type="file" ref="importInputRef" accept=".json" style="display:none" @change="importConfig">
     </div>
 
-    <!-- ===== WinUI IIFE ===== -->
-    <script src="packages/WinUiOnWeb/winuionweb.iife.js"></script>
-    <script>
-        const { createApp, ref, reactive, nextTick, onMounted } = Vue;
+    <!-- Admin Panel Modal -->
+    <div class="modal-overlay" id="adminModal">
+        <div class="modal modal-wide">
+            <div class="modal-icon">
+                <svg viewBox="0 0 24 24" width="28" height="28">
+                    <circle cx="12" cy="12" r="3" fill="none" stroke="var(--accent)" stroke-width="2"/>
+                    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <div class="modal-title">管理导航</div>
+            <div class="admin-toolbar">
+                <button class="btn btn-accent" onclick="openAddModal()">
+                    <svg viewBox="0 0 24 24" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    添加
+                </button>
+                <button class="btn btn-secondary" onclick="exportConfig()">
+                    <svg viewBox="0 0 24 24" width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="7" y1="10" x2="12" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="15" x2="17" y2="10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    导出
+                </button>
+                <button class="btn btn-secondary" onclick="triggerImport()">
+                    <svg viewBox="0 0 24 24" width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="17" y1="8" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="3" x2="7" y2="8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    导入
+                </button>
+                <button class="btn btn-secondary" onclick="openLogModal()">
+                    <svg viewBox="0 0 24 24" width="16" height="16"><rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8" y1="8" x2="16" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="8" y1="12" x2="14" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="8" y1="16" x2="12" y2="16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    日志
+                </button>
+                <button class="btn btn-secondary" onclick="doLogout()">
+                    <svg viewBox="0 0 24 24" width="16" height="16"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="16" y1="17" x2="21" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="21" y1="12" x2="16" y2="7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    退出
+                </button>
+            </div>
+            <input type="file" id="importInput" accept=".json" style="display:none" onchange="importConfig(event)">
+            <div class="admin-list" id="adminList"></div>
+            <div class="admin-hint">
+                <svg viewBox="0 0 24 24" width="14" height="14" style="flex-shrink:0"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="0.5" fill="currentColor"/></svg>
+                <span>在卡片上悬停可直接编辑 / 删除 &middot; 修改后导出替换 <code>data/nav.json</code> 即可同步</span>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('adminModal')">关闭</button>
+            </div>
+        </div>
+    </div>
 
-        const app = createApp({
-            setup() {
-                // ---- State ----
-                const ADMIN_USER = 'admin';
-                const ADMIN_PASS = 'admin888';
-                const CONFIG_PATH = 'data/nav.json';
+    <!-- Add / Edit Item Modal -->
+    <div class="modal-overlay" id="itemModal">
+        <div class="modal">
+            <div class="modal-icon">
+                <svg viewBox="0 0 24 24" width="28" height="28">
+                    <rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="var(--accent)" stroke-width="2"/>
+                    <line x1="12" y1="8" x2="12" y2="16" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="8" y1="12" x2="16" y2="12" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <div class="modal-title" id="itemModalTitle">添加导航项</div>
+            <div class="form-group">
+                <label>名称</label>
+                <input type="text" id="itemName" placeholder="例如：诗词浏览">
+            </div>
+            <div class="form-group">
+                <label>路径 / URL</label>
+                <input type="text" id="itemPath" placeholder="例如：poetry/index.html 或 https://example.com">
+            </div>
+            <div class="form-group">
+                <label>导航类型</label>
+                <div class="toggle-seg" id="pathTypeSeg">
+                    <button class="toggle-seg-btn active" data-type="path" onclick="setPathType('path')">相对路径</button>
+                    <button class="toggle-seg-btn" data-type="url" onclick="setPathType('url')">外部 URL</button>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('itemModal')">取消</button>
+                <button class="btn btn-accent" id="itemSaveBtn" onclick="saveItem()">保存</button>
+            </div>
+            <input type="hidden" id="editIndex" value="-1">
+        </div>
+    </div>
 
-                const isAdmin = ref(false);
-                const navItems = ref([]);
+    <!-- Log Management Modal -->
+    <div class="modal-overlay" id="logModal">
+        <div class="modal modal-log">
+            <div class="modal-icon">
+                <svg viewBox="0 0 24 24" width="28" height="28">
+                    <rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="var(--accent)" stroke-width="2"/>
+                    <line x1="8" y1="8" x2="16" y2="8" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round"/>
+                    <line x1="8" y1="12" x2="14" y2="12" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round"/>
+                    <line x1="8" y1="16" x2="12" y2="16" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <div class="modal-title">日志管理</div>
+            <div class="admin-toolbar">
+                <button class="btn btn-accent" onclick="openLogEdit(-1)">
+                    <svg viewBox="0 0 24 24" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    添加日志
+                </button>
+                <button class="btn btn-secondary" onclick="exportLog()">
+                    <svg viewBox="0 0 24 24" width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="7" y1="10" x2="12" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="15" x2="17" y2="10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    导出
+                </button>
+                <button class="btn btn-secondary" onclick="triggerLogImport()">
+                    <svg viewBox="0 0 24 24" width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="17" y1="8" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="3" x2="7" y2="8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    导入
+                </button>
+            </div>
+            <input type="file" id="logImportInput" accept=".json" style="display:none" onchange="importLogConfig(event)">
+            <div class="admin-list" id="logList" style="max-height:360px"></div>
+            <div class="admin-hint">
+                <svg viewBox="0 0 24 24" width="14" height="14" style="flex-shrink:0"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="0.5" fill="currentColor"/></svg>
+                <span>日志数据存储在 <code>data/log.json</code>，导出后替换并提交 Git 即可同步</span>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('logModal')">关闭</button>
+            </div>
+        </div>
+    </div>
 
-                // Login
-                const showLogin = ref(false);
-                const loginUser = ref('');
-                const loginPass = ref('');
+    <!-- Log Edit Modal -->
+    <div class="modal-overlay" id="logEditModal">
+        <div class="modal">
+            <div class="modal-icon">
+                <svg viewBox="0 0 24 24" width="28" height="28">
+                    <path d="M12 20h9" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <div class="modal-title" id="logEditTitle">添加日志</div>
+            <div class="form-group">
+                <label>标题</label>
+                <input type="text" id="logTitle" placeholder="日志标题">
+            </div>
+            <div class="form-group">
+                <label>内容</label>
+                <textarea id="logContent" placeholder="日志内容..." rows="4" style="resize:vertical"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('logEditModal')">取消</button>
+                <button class="btn btn-accent" onclick="saveLog()">保存</button>
+            </div>
+            <input type="hidden" id="logEditIndex" value="-1">
+        </div>
+    </div>
 
-                // Admin panel
-                const showAdmin = ref(false);
+    <!-- Toast Container -->
+    <div class="toast-stack" id="toastContainer"></div>
 
-                // Delete confirm
-                const showDeleteConfirm = ref(false);
-                const deleteTargetIndex = ref(-1);
-                const deleteTargetName = ref('');
-
-                // Item editor
-                const showItemEditor = ref(false);
-                const editingIndex = ref(-1);
-                const itemName = ref('');
-                const itemPath = ref('');
-
-                // Import
-                const importInputRef = ref(null);
-
-                // Toast
-                const toast = reactive({
-                    show: false,
-                    title: '',
-                    message: '',
-                    severity: 'Informational',
-                });
-
-                let toastTimer = null;
-
-                // ---- Methods ----
-                function showToast(title, message, severity) {
-                    if (toastTimer) clearTimeout(toastTimer);
-                    toast.title = title;
-                    toast.message = message;
-                    toast.severity = severity || 'Informational';
-                    toast.show = true;
-                    toastTimer = setTimeout(() => { toast.show = false; }, 3000);
-                }
-
-                async function loadNavItems() {
-                    try {
-                        const res = await fetch(CONFIG_PATH + '?t=' + Date.now());
-                        if (!res.ok) throw new Error('HTTP ' + res.status);
-                        navItems.value = await res.json();
-                    } catch (e) {
-                        console.warn('加载配置文件失败:', e);
-                        navItems.value = [];
-                    }
-                }
-
-                function navigate(path) {
-                    if (!path) return;
-                    if (path.startsWith('http://') || path.startsWith('https://')) {
-                        window.open(path, '_blank');
-                    } else {
-                        window.location.href = path;
-                    }
-                }
-
-                // ---- Login / Logout ----
-                function doLogin() {
-                    if (loginUser.value === ADMIN_USER && loginPass.value === ADMIN_PASS) {
-                        isAdmin.value = true;
-                        showLogin.value = false;
-                        loginUser.value = '';
-                        loginPass.value = '';
-                        showToast('登录成功', '', 'Success');
-                        nextTick(() => { showAdmin.value = true; });
-                    } else {
-                        showToast('登录失败', '账号或密码错误', 'Error');
-                    }
-                }
-
-                function doLogout() {
-                    isAdmin.value = false;
-                    showAdmin.value = false;
-                    showToast('已退出管理', '', 'Informational');
-                }
-
-                function openAdmin() {
-                    showAdmin.value = true;
-                }
-
-                // ---- Delete ----
-                function confirmDelete(index) {
-                    deleteTargetIndex.value = index;
-                    deleteTargetName.value = navItems.value[index].name;
-                    showDeleteConfirm.value = true;
-                }
-
-                function doDelete() {
-                    const name = deleteTargetName.value;
-                    navItems.value.splice(deleteTargetIndex.value, 1);
-                    showDeleteConfirm.value = false;
-                    showToast('已删除', '「' + name + '」已移除', 'Informational');
-                }
-
-                // ---- Item Editor ----
-                function openItemEditor(index) {
-                    editingIndex.value = index;
-                    if (index === -1) {
-                        itemName.value = '';
-                        itemPath.value = '';
-                    } else {
-                        const item = navItems.value[index];
-                        itemName.value = item.name;
-                        itemPath.value = item.path;
-                    }
-                    showItemEditor.value = true;
-                }
-
-                function saveItem() {
-                    const name = itemName.value.trim();
-                    const path = itemPath.value.trim();
-                    if (!name) { showToast('保存失败', '请输入名称', 'Error'); return; }
-                    if (!path) { showToast('保存失败', '请输入路径', 'Error'); return; }
-
-                    const newItem = { name, path, icon: '◈' };
-
-                    if (editingIndex.value === -1) {
-                        navItems.value.push(newItem);
-                        showToast('添加成功', '「' + name + '」已添加', 'Success');
-                    } else {
-                        navItems.value[editingIndex.value] = newItem;
-                        showToast('修改成功', '「' + name + '」已更新', 'Success');
-                    }
-
-                    showItemEditor.value = false;
-                }
-
-                // ---- Export / Import ----
-                function exportConfig() {
-                    const blob = new Blob([JSON.stringify(navItems.value, null, 2)], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'nav.json';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                    showToast('配置已导出', '替换 data/nav.json 后提交 Git 即可同步', 'Success');
-                }
-
-                function triggerImport() {
-                    importInputRef.value?.click();
-                }
-
-                function importConfig(e) {
-                    const file = e.target.files[0];
-                    if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = function (ev) {
-                        try {
-                            const data = JSON.parse(ev.target.result);
-                            if (!Array.isArray(data)) throw new Error('需要 JSON 数组格式');
-                            navItems.value = data;
-                            showToast('导入成功', '点击「导出配置」覆盖 data/nav.json 即可持久化', 'Success');
-                        } catch (err) {
-                            showToast('导入失败', err.message, 'Error');
-                        }
-                    };
-                    reader.readAsText(file);
-                    e.target.value = '';
-                }
-
-                // ---- Init ----
-                onMounted(() => {
-                    loadNavItems();
-                });
-
-                // ---- Keyboard: Enter in login dialog ----
-                function onLoginKeydown(e) {
-                    if (e.key === 'Enter') doLogin();
-                }
-
-                return {
-                    isAdmin, navItems,
-                    showLogin, loginUser, loginPass,
-                    showAdmin,
-                    showDeleteConfirm, deleteTargetName,
-                    showItemEditor, editingIndex, itemName, itemPath,
-                    importInputRef,
-                    toast,
-                    doLogin, doLogout, openAdmin,
-                    navigate,
-                    confirmDelete, doDelete,
-                    openItemEditor, saveItem,
-                    exportConfig, triggerImport, importConfig,
-                };
-            }
-        });
-
-        // ---- Register WinUI Components ----
-        const winComponents = [
-            'StackPanel', 'TextBlock', 'Button',
-            'TextBox', 'PasswordBox',
-            'Border', 'ContentDialog', 'InfoBar',
-        ];
-        winComponents.forEach(name => {
-            const tag = 'win-' + name.replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, '');
-            if (WinUIonWeb[name]) {
-                app.component(tag, WinUIonWeb[name]);
-            }
-        });
-
-        app.mount('#app');
-    </script>
+    <script src="js/main.js"></script>
 </body>
 </html>

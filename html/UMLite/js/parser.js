@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿/* ---------------- 解析层 ---------------- */
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿/* ---------------- 解析层 ---------------- */
 
 const DIAGRAM_ALIASES = {
   class: 'class', classdiagram: 'class', '类图': 'class',
@@ -256,7 +256,7 @@ function parseActivity(lines) {
   const link = (froms, to, label) => {
     for (const f of froms) {
       if (f === to) continue;
-      edges.push({ from: f, to, label: label || '' });
+      edges.push({ from: f, to, label: label || '', head: 'triangle' });
     }
   };
 

@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿/* ==========================================================================
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿/* ==========================================================================
  *  布局层
  * ========================================================================== */
 
@@ -380,31 +380,102 @@ function layoutActivityContainers(model) {
       vs.forEach((s, i) => { s.x = regionX + i * vw; s.y = regionY; s.w = vw; s.h = regionH; });
     }
     // 把归入泳道的节点约束进各自泳道范围内（默认沿泳道中心线排布）
-    const M = 14;
-    for (const s of swimlanes) {
-      const owned = nodes.filter(n => n.lane === s.label);
-      if (!owned.length) continue;
-      const box = swimlanes.filter(o => o.label === s.label);
-      if (box.length !== 1) continue;
-      const lane = box[0];
-      // 水平泳道：节点居中，纵向均匀错开
-      if (lane.dir === 'h') {
-        const topY = lane.y + M;
-        const bottomY = lane.y + lane.h - M;
-        owned.forEach((n, i) => {
-          n.x = Math.min(Math.max(n.x, lane.x + M), lane.x + lane.w - M);
-          n.y = Math.min(Math.max(n.y, topY + (bottomY - topY) * (i + 1) / (owned.length + 1), lane.y + M), lane.y + lane.h - M);
-        });
-      } else {
-        const leftX = lane.x + M;
-        const rightX = lane.x + lane.w - M;
-        owned.forEach((n, i) => {
-          n.y = Math.min(Math.max(n.y, lane.y + M), lane.y + lane.h - M);
-          n.x = Math.min(Math.max(n.x, leftX + (rightX - leftX) * (i + 1) / (owned.length + 1), lane.x + M), lane.x + lane.w - M);
-        });
+    constrainOwnedToLanes(swimlanes, nodes);
+  }
+}
+
+/* 把归入各泳道的节点收拢/约束回各自泳道范围内（本函数不移动泳道本身） */
+function constrainOwnedToLanes(swimlanes, nodes) {
+  const M = 14;
+  for (const lane of swimlanes) {
+    const owned = nodes.filter(n => n.lane === lane.label && !n.fixedRel);
+    if (!owned.length) continue;
+    if (lane.dir === 'h') {
+      const topY = lane.y + M;
+      const bottomY = lane.y + lane.h - M;
+      owned.forEach((n, i) => {
+        n.x = Math.min(Math.max(n.x, lane.x + M), lane.x + lane.w - M);
+        n.y = Math.min(Math.max(n.y, topY + (bottomY - topY) * (i + 1) / (owned.length + 1), lane.y + M), lane.y + lane.h - M);
+      });
+    } else {
+      const leftX = lane.x + M;
+      const rightX = lane.x + lane.w - M;
+      owned.forEach((n, i) => {
+        n.y = Math.min(Math.max(n.y, lane.y + M), lane.y + lane.h - M);
+        n.x = Math.min(Math.max(n.x, leftX + (rightX - leftX) * (i + 1) / (owned.length + 1), lane.x + M), lane.x + lane.w - M);
+      });
+    }
+  }
+}
+
+/* 应用 @layout 位置定义：在归一化后把被定位的对象设为绝对坐标。
+   放在 normalizeToOrigin 之后执行，故绝对值即为最终渲染坐标，双向 round-trip 稳定。 */
+function applyLayout(model) {
+  const L = model.layout;
+  if (!L || !L.length) return;
+  // 第一遍：一级定位（节点、边界、泳道）用绝对坐标
+  for (const item of L) {
+    if (item.kind === 'node') {
+      const n = model.nodes && model.nodes.find(nd => nd.id === item.name || nd.label === item.name);
+      if (n) {
+        n.x = item.x; n.y = item.y;
+        if (item.w != null) { n.w = item.w; if (item.h != null) n.h = item.h; }
+      }
+    } else if (item.kind === 'boundary') {
+      const b = model.boundary || (model.type === 'activity' ? model.activityEdge : null);
+      if (b) {
+        b.x = item.x; b.y = item.y;
+        if (item.w != null) { b.w = item.w; if (item.h != null) b.h = item.h; }
+      }
+    } else if (item.kind === 'lane') {
+      const s = model.swimlanes && model.swimlanes.find(x => x.label === item.name);
+      if (s) {
+        s.x = item.x; s.y = item.y;
+        if (item.w != null) { s.w = item.w; if (item.h != null) s.h = item.h; }
       }
     }
   }
+  // 第二遍：二级定位（泳道内元素），坐标相对其泳道 = 泳道位置 + 相对坐标
+  for (const item of L) {
+    if (item.kind !== 'laneNode') continue;
+    const s = model.swimlanes && model.swimlanes.find(x => x.label === item.lane);
+    if (!s) continue;
+    const n = model.nodes && model.nodes.find(nd => nd.id === item.id);
+    if (!n) continue;
+    n.fixedRel = true; // 标记为已二级定位，后续泳道重排会跳过它
+    n.lane = item.lane;
+    n.x = s.x + item.x; n.y = s.y + item.y;
+    if (item.w != null) { n.w = item.w; if (item.h != null) n.h = item.h; }
+  }
+  // 泳道覆盖后，把归入泳道的节点重新收拢回（新位置/新大小的）泳道内
+  if (model.swimlanes && model.swimlanes.length) constrainOwnedToLanes(model.swimlanes, model.nodes);
+  // 按覆盖后的坐标计算完整包围盒（含负坐标；例如泳道定位到左侧负区时画布也要能容纳）
+  let minX = 0, minY = 0;
+  let maxX = model.contentW, maxY = model.contentH;
+  if (Array.isArray(model.nodes)) {
+    for (const n of model.nodes) {
+      minX = Math.min(minX, n.x - n.w / 2); maxX = Math.max(maxX, n.x + n.w / 2);
+      minY = Math.min(minY, n.y - n.h / 2); maxY = Math.max(maxY, n.y + n.h / 2);
+    }
+  }
+  for (const b of [model.boundary, model.activityEdge]) {
+    if (b && b.w) {
+      minX = Math.min(minX, b.x); maxX = Math.max(maxX, b.x + b.w);
+      minY = Math.min(minY, b.y); maxY = Math.max(maxY, b.y + b.h);
+    }
+  }
+  if (model.swimlanes) {
+    for (const s of model.swimlanes) {
+      minX = Math.min(minX, s.x); maxX = Math.max(maxX, s.x + s.w);
+      minY = Math.min(minY, s.y); maxY = Math.max(maxY, s.y + s.h);
+    }
+  }
+  const PAD = 40;
+  model.contentW = maxX + PAD;
+  model.contentH = maxY + PAD;
+  // 记录超出 0 轴的左/上偏移，供 fitView 包含负坐标区域
+  model.layoutMinX = Math.min(0, minX - PAD);
+  model.layoutMinY = Math.min(0, minY - PAD);
 }
 
 /* -------- 时序图布局 -------- */

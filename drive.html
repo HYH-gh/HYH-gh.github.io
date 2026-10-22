@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的云盘</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-bg"></div>
+
+    <header class="header">
+        <div class="header-left">
+            <svg class="logo-icon" viewBox="0 0 32 32" width="28" height="28">
+                <rect x="2" y="2" width="12" height="12" rx="3" fill="var(--accent)"/>
+                <rect x="18" y="2" width="12" height="12" rx="3" fill="var(--accent)" opacity="0.6"/>
+                <rect x="2" y="18" width="12" height="12" rx="3" fill="var(--accent)" opacity="0.6"/>
+                <rect x="18" y="18" width="12" height="12" rx="3" fill="var(--accent)" opacity="0.35"/>
+            </svg>
+            <span class="header-title">我的云盘</span>
+        </div>
+        <div class="header-right">
+            <span class="admin-tag" id="userBadge" style="display:none"></span>
+            <button class="header-btn" id="themeToggle" title="切换主题" onclick="toggleTheme()">
+                <svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18">
+                    <circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <line x1="12" y1="1" x2="12" y2="4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="12" y1="20" x2="12" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="20" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="1" y1="12" x2="4" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="4.22" y1="4.22" x2="6.34" y2="6.34" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="17.66" y1="17.66" x2="19.78" y2="19.78" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="4.22" y1="19.78" x2="6.34" y2="17.66" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="19.78" y1="4.22" x2="17.66" y2="6.34" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <a class="header-btn" href="index.html" title="返回导航">返回</a>
+            <button class="header-btn" onclick="logout()">退出</button>
+        </div>
+    </header>
+
+    <main class="drive-main">
+        <div class="drive-container" id="driveContainer">
+            <div class="drive-list-col">
+                <div class="drive-toolbar">
+                    <div class="path-bar" id="pathBar"></div>
+                    <div class="drive-toolbar-actions">
+                        <button class="btn btn-secondary" id="quotaAdminBtn" onclick="openQuotaManager()" style="display:none">配额管理</button>
+                        <button class="btn btn-accent" onclick="newFolder()">新建文件夹</button>
+                    </div>
+                </div>
+                <div class="storage-usage" id="storageUsage">
+                    <div class="storage-usage-label">
+                        <span>存储空间</span>
+                        <span id="storageUsageText">—</span>
+                    </div>
+                    <div class="storage-usage-track">
+                        <div class="storage-usage-fill" id="storageUsageFill" style="width:0%"></div>
+                    </div>
+                </div>
+                <div class="storage-upload" id="storageDrop">
+                    <div class="storage-upload-inner">
+                        <div>将文件拖拽到此处上传</div>
+                        <div class="storage-upload-sub">任意类型、可多选；图片与纯文本文件支持在线预览</div>
+                        <button class="btn btn-accent" onclick="document.getElementById('storageFileInput').click()">选择文件</button>
+                        <input type="file" id="storageFileInput" multiple style="display:none">
+                    </div>
+                </div>
+                <div class="storage-hint" id="storageHint"></div>
+                <div class="storage-list" id="storageList"></div>
+            </div>
+
+            <aside class="preview-panel" id="previewPanel">
+                <div class="preview-panel-head">
+                    <div class="preview-title" id="previewTitle">预览</div>
+                    <button class="btn btn-secondary" onclick="closePreview()">关闭</button>
+                </div>
+                <div class="preview-body" id="previewBody"></div>
+            </aside>
+        </div>
+    </main>
+
+    <!-- 配额管理 Modal（仅管理员） -->
+    <div class="modal-overlay" id="quotaModal">
+        <div class="modal modal-wide">
+            <div class="modal-title">存储配额管理</div>
+            <p class="modal-sub">配额以「字节」为单位；1GB = 1073741824</p>
+            <div class="quota-admin-default">
+                <label for="quotaDefaultInput">默认配额（未单独设置的用户使用）</label>
+                <div class="quota-admin-default-row">
+                    <input type="number" id="quotaDefaultInput" min="0">
+                    <button class="btn btn-accent" onclick="saveDefaultQuota()">保存默认</button>
+                </div>
+            </div>
+            <div class="modal-title small">用户具体配额（留空清空并按默认）</div>
+            <div class="quota-admin-list" id="quotaUserList"></div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeQuotaManager()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 通用对话框（新建/重命名/删除确认） -->
+    <div class="modal-overlay" id="appDialog">
+        <div class="modal modal-sm app-dialog">
+            <div class="modal-title" id="appDialogTitle">提示</div>
+            <div class="app-dialog-body">
+                <p class="app-dialog-msg" id="appDialogMsg"></p>
+                <div class="app-dialog-input-wrap" id="appDialogInputWrap">
+                    <input type="text" id="appDialogInput" maxlength="100" autocomplete="off">
+                    <div class="app-dialog-err" id="appDialogErr"></div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeAppDialog()">取消</button>
+                <button class="btn btn-accent" id="appDialogOk" onclick="appDialogOk()">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toastContainer" class="toast-stack"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/drive.js"></script>
+</body>
+</html>

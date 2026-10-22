@@ -6,25 +6,26 @@
     'use strict';
 
     // ============================================================
-    // 1. Admin credentials
-    // ============================================================
-    var ADMIN_USER = 'admin';
-    var ADMIN_PASS = 'admin888';
-
-    // ============================================================
-    // 2. State
+    // 1. State
     // ============================================================
     var isAdmin = false;
     var navItems = [];
     var logItems = [];
     var currentPathType = 'path';
-    var NAV_PATH = 'data/nav.json';
-    var LOG_PATH = 'data/log.json';
-    var NAV_STORAGE = 'hub_nav_items';
     var LOG_STORAGE = 'hub_log_items';
-    var DB_NAME = 'hub_file_handles';
-    var DB_VERSION = 1;
-    var fileHandles = { nav: null, log: null };
+
+    // ============================================================
+    // 2b. Supabase 配置（连接动态数据库）
+    // ============================================================
+    var SUPABASE_URL = 'https://gxpnjnnhzicmdlcnweve.supabase.co';
+    var SUPABASE_KEY = 'sb_publishable_UYsnk3V791ZgZzPBn-mL-w_v7mRAmbC';
+    var NAV_TABLE = 'nav_items';
+    var ADMINS_TABLE = 'admins';
+    var loginMode = 'login';
+    var currentUser = null;   // null=游客 | { email, role:'admin'|'user' }
+    var supabase = (typeof window.supabase !== 'undefined')
+        ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+        : null;
 
     // ============================================================
     // 3. Theme
@@ -44,299 +45,23 @@
     };
 
     // ============================================================
-    // 4. AJAX helper
-    // ============================================================
-    function fetchJSON(path, callback) {
-        var req = new XMLHttpRequest();
-        req.open('GET', path + '?t=' + Date.now(), true);
-        req.onload = function () {
-            if (req.status >= 200 && req.status < 300) {
-                try {
-                    var data = JSON.parse(req.responseText);
-                    callback(data);
-                } catch (e) {
-                    console.warn('JSON parse error:', path, e);
-                    callback(null);
-                }
-            } else {
-                console.warn('Failed to load:', path, req.status);
-                callback(null);
-            }
-        };
-        req.onerror = function () {
-            console.warn('Request error:', path);
-            callback(null);
-        };
-        req.send();
-    }
-
-    // ============================================================
-    // 5. File System Access API — 直接读写磁盘文件
-    // ============================================================
-    function isFileSystemAPISupported() {
-        return 'showOpenFilePicker' in window;
-    }
-
-    function openDB(callback) {
-        if (!window.indexedDB) { callback(null); return; }
-        var request = indexedDB.open(DB_NAME, DB_VERSION);
-        request.onupgradeneeded = function (e) {
-            var db = e.target.result;
-            if (!db.objectStoreNames.contains('handles')) {
-                db.createObjectStore('handles');
-            }
-        };
-        request.onsuccess = function (e) { callback(e.target.result); };
-        request.onerror = function () { callback(null); };
-    }
-
-    function saveFileHandle(key, handle) {
-        openDB(function (db) {
-            if (!db) return;
-            var tx = db.transaction('handles', 'readwrite');
-            var store = tx.objectStore('handles');
-            store.put(handle, key);
-        });
-    }
-
-    function removeFileHandle(key) {
-        openDB(function (db) {
-            if (!db) return;
-            var tx = db.transaction('handles', 'readwrite');
-            var store = tx.objectStore('handles');
-            store.delete(key);
-        });
-    }
-
-    function loadFileHandles(callback) {
-        openDB(function (db) {
-            if (!db) { callback(null, null); return; }
-            var tx = db.transaction('handles', 'readonly');
-            var store = tx.objectStore('handles');
-            var navReq = store.get('nav');
-            var logReq = store.get('log');
-            var navHandle = undefined;
-            var logHandle = undefined;
-            var done = 0;
-            function check() {
-                done++;
-                if (done >= 2) callback(navHandle, logHandle);
-            }
-            navReq.onsuccess = function (e) { navHandle = e.target.result; check(); };
-            navReq.onerror = check;
-            logReq.onsuccess = function (e) { logHandle = e.target.result; check(); };
-            logReq.onerror = check;
-        });
-    }
-
-    function writeToFile(handle, jsonData, callback) {
-        handle.createWritable().then(function (writable) {
-            var content = JSON.stringify(jsonData, null, 2);
-            return writable.write(content).then(function () { return writable.close(); });
-        }).then(function () {
-            if (callback) callback(null);
-        }).catch(function (e) {
-            if (callback) callback(e);
-        });
-    }
-
-    function readFromFile(handle, callback) {
-        handle.getFile().then(function (file) {
-            return file.text();
-        }).then(function (text) {
-            try {
-                var data = JSON.parse(text);
-                callback(null, data);
-            } catch (e) {
-                callback(e);
-            }
-        }).catch(function (e) {
-            callback(e);
-        });
-    }
-
-    async function pickAndSyncFile(key, label) {
-        try {
-            var handles = await window.showOpenFilePicker({
-                types: [{ description: 'JSON Files', accept: { 'application/json': ['.json'] } }],
-                multiple: false,
-                suggestedName: label + '.json'
-            });
-            var handle = handles[0];
-            var opts = { mode: 'readwrite' };
-            var perm = await handle.queryPermission(opts);
-            if (perm !== 'granted') {
-                perm = await handle.requestPermission(opts);
-            }
-            if (perm !== 'granted') {
-                showToast('未获得 ' + label + '.json 写入权限', 'error');
-                return null;
-            }
-            return handle;
-        } catch (e) {
-            if (e.name !== 'AbortError') {
-                console.warn('File picker error:', e);
-            }
-            return null;
-        }
-    }
-
-    window.syncDiskFiles = function () {
-        if (!isFileSystemAPISupported()) {
-            showToast('当前浏览器不支持 File System Access API，请使用 Chrome/Edge', 'error');
-            return;
-        }
-        showToast('请选择 data/nav.json 文件', 'info');
-        pickAndSyncFile('nav', 'nav').then(function (navHandle) {
-            if (!navHandle) return;
-            showToast('请选择 data/log.json 文件', 'info');
-            pickAndSyncFile('log', 'log').then(function (logHandle) {
-                if (!logHandle) return;
-                fileHandles.nav = navHandle;
-                fileHandles.log = logHandle;
-                saveFileHandle('nav', navHandle);
-                saveFileHandle('log', logHandle);
-
-                var loaded = 0;
-                function tryDone() {
-                    loaded++;
-                    if (loaded >= 2) {
-                        updateSyncUI();
-                        saveNavToStorage();
-                        saveLogToStorage();
-                        renderGrid();
-                        renderAdminList();
-                        renderLogList();
-                        showToast('磁盘同步成功！后续修改将自动写入文件', 'success');
-                    }
-                }
-                readFromFile(navHandle, function (err, data) {
-                    if (!err && Array.isArray(data)) {
-                        navItems = data;
-                        saveNavToStorage();
-                    }
-                    tryDone();
-                });
-                readFromFile(logHandle, function (err, data) {
-                    if (!err && Array.isArray(data)) {
-                        logItems = data;
-                        saveLogToStorage();
-                    }
-                    tryDone();
-                });
-            });
-        });
-    };
-
-    function initFileSync() {
-        if (!isFileSystemAPISupported()) {
-            updateSyncUI();
-            return;
-        }
-        loadFileHandles(function (navHandle, logHandle) {
-            if (!navHandle && !logHandle) {
-                updateSyncUI();
-                return;
-            }
-            var tasks = [];
-            if (navHandle) {
-                tasks.push(new Promise(function (resolve) {
-                    navHandle.queryPermission({ mode: 'readwrite' }).then(function (perm) {
-                        if (perm === 'granted') {
-                            fileHandles.nav = navHandle;
-                            readFromFile(navHandle, function (err, data) {
-                                if (!err && Array.isArray(data)) {
-                                    navItems = data;
-                                    saveNavToStorage();
-                                }
-                                resolve();
-                            });
-                        } else {
-                            removeFileHandle('nav');
-                            resolve();
-                        }
-                    }).catch(function () { resolve(); });
-                }));
-            }
-            if (logHandle) {
-                tasks.push(new Promise(function (resolve) {
-                    logHandle.queryPermission({ mode: 'readwrite' }).then(function (perm) {
-                        if (perm === 'granted') {
-                            fileHandles.log = logHandle;
-                            readFromFile(logHandle, function (err, data) {
-                                if (!err && Array.isArray(data)) {
-                                    logItems = data;
-                                    saveLogToStorage();
-                                }
-                                resolve();
-                            });
-                        } else {
-                            removeFileHandle('log');
-                            resolve();
-                        }
-                    }).catch(function () { resolve(); });
-                }));
-            }
-            Promise.all(tasks).then(function () {
-                updateSyncUI();
-                if (fileHandles.nav || fileHandles.log) {
-                    renderGrid();
-                    renderAdminList();
-                    renderLogList();
-                }
-            });
-        });
-    }
-
-    function updateSyncUI() {
-        var btn = document.getElementById('syncDiskBtn');
-        var status = document.getElementById('syncStatus');
-        if (!btn || !status) return;
-
-        if (!isFileSystemAPISupported()) {
-            btn.style.display = 'none';
-            status.style.display = 'none';
-            return;
-        }
-
-        btn.style.display = '';
-        var connected = !!(fileHandles.nav && fileHandles.log);
-        if (connected) {
-            btn.style.background = 'var(--success-bg)';
-            btn.style.color = 'var(--success)';
-            btn.style.borderColor = 'var(--success)';
-            btn.title = '磁盘文件已同步，修改自动写入';
-            status.style.display = 'inline';
-            status.textContent = '已同步';
-            status.style.color = 'var(--success)';
-            status.style.fontSize = '11px';
-            status.style.fontWeight = '500';
-        } else {
-            btn.style.background = '';
-            btn.style.color = '';
-            btn.style.borderColor = '';
-            btn.title = '同步磁盘文件后，所有修改将直接写入磁盘文件';
-            status.style.display = 'none';
-        }
-    }
-
-    // ============================================================
-    // 6. Data - load nav & logs (localStorage 优先，JSON 文件为初始默认)
+    // 3. Data — 从 Supabase 加载导航（日志为浏览器本地缓存）
     // ============================================================
     function loadNavItems() {
-        var stored = localStorage.getItem(NAV_STORAGE);
-        if (stored) {
-            try {
-                navItems = JSON.parse(stored);
+        if (!supabase) { renderGrid(); return; }
+        supabase.from(NAV_TABLE)
+            .select('*')
+            .order('sort', { ascending: true })
+            .then(function (res) {
+                if (res.error) {
+                    console.warn('Supabase 读取失败:', res.error);
+                    renderGrid();
+                    return;
+                }
+                navItems = Array.isArray(res.data) ? res.data : [];
                 renderGrid();
-                return;
-            } catch (e) { /* 损坏则走 JSON 加载 */ }
-        }
-        fetchJSON(NAV_PATH, function (data) {
-            navItems = Array.isArray(data) ? data : [];
-            saveNavToStorage();
-            renderGrid();
-        });
+            })
+            .catch(function (e) { console.warn('Supabase 请求异常:', e); renderGrid(); });
     }
 
     function loadLogItems() {
@@ -346,31 +71,18 @@
                 logItems = JSON.parse(stored);
                 renderLogList();
                 return;
-            } catch (e) { /* 损坏则走 JSON 加载 */ }
-        }
-        fetchJSON(LOG_PATH, function (data) {
-            logItems = Array.isArray(data) ? data : [];
-            saveLogToStorage();
+            } catch (e) {
+                logItems = [];
+                renderLogList();
+            }
+        } else {
+            logItems = [];
             renderLogList();
-        });
-    }
-
-    function saveNavToStorage() {
-        localStorage.setItem(NAV_STORAGE, JSON.stringify(navItems));
-        if (fileHandles.nav) {
-            writeToFile(fileHandles.nav, navItems, function (err) {
-                if (err) console.warn('写入 nav.json 失败:', err);
-            });
         }
     }
 
     function saveLogToStorage() {
         localStorage.setItem(LOG_STORAGE, JSON.stringify(logItems));
-        if (fileHandles.log) {
-            writeToFile(fileHandles.log, logItems, function (err) {
-                if (err) console.warn('写入 log.json 失败:', err);
-            });
-        }
     }
 
     // ============================================================
@@ -488,13 +200,23 @@
     };
 
     // ============================================================
-    // 11. Admin Login / Logout
+    // 11. Auth: Login / Register / Logout
     // ============================================================
+    function openAdminPanel() {
+        if (!isAdmin) return;
+        openModal('adminModal');
+        renderAdminList();
+    }
+
     function toggleLogin() {
-        if (isAdmin) {
-            openModal('adminModal');
-            renderAdminList();
+        if (currentUser) {
+            if (isAdmin) {
+                openAdminPanel();
+            } else {
+                doLogout();
+            }
         } else {
+            switchLoginMode('login');
             openModal('loginModal');
             setTimeout(function () {
                 var el = document.getElementById('loginUser');
@@ -503,35 +225,237 @@
         }
     }
 
-    function doLogin() {
-        var user = document.getElementById('loginUser').value.trim();
-        var pass = document.getElementById('loginPass').value.trim();
-        if (user === ADMIN_USER && pass === ADMIN_PASS) {
-            isAdmin = true;
-            closeModal('loginModal');
-            document.getElementById('loginUser').value = '';
-            document.getElementById('loginPass').value = '';
-            document.getElementById('adminBadge').style.display = 'inline';
-            document.getElementById('adminBtn').textContent = '管理导航';
-            renderGrid();
-            showToast('登录成功', 'success');
-            openModal('adminModal');
-            renderAdminList();
-            initFileSync();
+    window.switchLoginMode = function () {
+        var next = document.getElementById('loginMode').value === 'login' ? 'register' : 'login';
+        switchLoginMode(next);
+    };
+
+    function switchLoginMode(mode) {
+        loginMode = mode;
+        var title = document.getElementById('loginTitle');
+        var nameGroup = document.getElementById('loginNameGroup');
+        var pass2Group = document.getElementById('loginPass2Group');
+        var actionBtn = document.getElementById('loginActionBtn');
+        var switchLink = document.getElementById('loginSwitchLink');
+        var modeInput = document.getElementById('loginMode');
+        if (mode === 'register') {
+            title.textContent = '注册账号';
+            nameGroup.style.display = '';
+            pass2Group.style.display = '';
+            actionBtn.textContent = '注册';
+            switchLink.textContent = '已有账号？去登录';
+            modeInput.value = 'register';
         } else {
-            showToast('账号或密码错误', 'error');
+            title.textContent = '登录';
+            nameGroup.style.display = 'none';
+            pass2Group.style.display = 'none';
+            actionBtn.textContent = '登录';
+            switchLink.textContent = '没有账号？去注册';
+            modeInput.value = 'login';
+        }
+    }
+
+    window.dispatchAuthAction = function () {
+        if (loginMode === 'register') doRegister(); else doLogin();
+    };
+
+    function doLogin() {
+        var email = document.getElementById('loginUser').value.trim();
+        var pass = document.getElementById('loginPass').value;
+        if (!email || !pass) { showToast('请输入邮箱和密码', 'error'); return; }
+        if (!supabase) { showToast('Supabase 未连接', 'error'); return; }
+        supabase.auth.signInWithPassword({ email: email, password: pass })
+            .then(function (res) {
+                if (res.error) { showToast('登录失败：' + res.error.message, 'error'); return; }
+                return resolveUser(res.data.user);
+            })
+            .then(function () { finishLogin(); })
+            .catch(function (e) { showToast('登录异常：' + (e.message || e), 'error'); });
+    }
+
+    function doRegister() {
+        var email = document.getElementById('loginUser').value.trim();
+        var pass = document.getElementById('loginPass').value;
+        var confirm = document.getElementById('loginPass2').value;
+        var username = (document.getElementById('loginName').value || '').trim();
+        if (!email || !pass) { showToast('请输入邮箱和密码', 'error'); return; }
+        if (pass.length < 6) { showToast('密码至少需 6 位', 'error'); return; }
+        if (pass !== confirm) { showToast('两次密码不一致', 'error'); return; }
+        if (!supabase) { showToast('Supabase 未连接', 'error'); return; }
+        supabase.auth.signUp({
+                email: email,
+                password: pass,
+                options: { data: { username: username } }
+            })
+            .then(function (res) {
+                if (res.error) { showToast('注册失败：' + res.error.message, 'error'); return; }
+                if (res.data.session) {
+                    return resolveUser(res.data.session.user).then(function () { finishLogin(); });
+                }
+                closeModal('loginModal');
+                showToast('注册成功，请到邮箱确认后登录', 'success');
+            })
+            .catch(function (e) { showToast('注册异常：' + (e.message || e), 'error'); });
+    }
+
+    function resolveUser(user) {
+        if (!user) { currentUser = null; isAdmin = false; return Promise.resolve(); }
+        var email = user.email;
+        var name = (user.user_metadata && user.user_metadata.username) ? user.user_metadata.username : email;
+        currentUser = { id: user.id, email: email, name: name, role: 'user' };
+        if (!supabase) { isAdmin = false; return Promise.resolve(); }
+        return supabase.from(ADMINS_TABLE)
+            .select('email')
+            .eq('email', email)
+            .maybeSingle()
+            .then(function (res) {
+                var admin = res && !res.error && res.data;
+                currentUser.role = admin ? 'admin' : 'user';
+                isAdmin = !!admin;
+            })
+            .catch(function () { isAdmin = false; });
+    }
+
+    function finishLogin() {
+        document.getElementById('loginUser').value = '';
+        document.getElementById('loginPass').value = '';
+        if (document.getElementById('loginPass2')) document.getElementById('loginPass2').value = '';
+        if (document.getElementById('loginName')) document.getElementById('loginName').value = '';
+        closeModal('loginModal');
+        var who = (currentUser && currentUser.name) ? currentUser.name : '';
+        if (isAdmin) {
+            showToast('管理员 ' + who + ' 登录成功', 'success');
+        } else {
+            showToast('登录成功，欢迎 ' + who, 'success');
+        }
+        updateAuthUI();
+        renderGrid();
+        if (isAdmin) {
+            openAdminPanel();
         }
     }
 
     function doLogout() {
+        if (supabase) {
+            supabase.auth.signOut().catch(function () {});
+        }
         isAdmin = false;
+        currentUser = null;
+        loginMode = 'login';
         closeModal('adminModal');
         closeModal('logModal');
         closeModal('logEditModal');
-        document.getElementById('adminBadge').style.display = 'none';
-        document.getElementById('adminBtn').textContent = '管理员登录';
+        updateAuthUI();
         renderGrid();
-        showToast('已退出管理', 'info');
+        showToast('已退出登录', 'info');
+    }
+
+    function updateAuthUI() {
+        var badge = document.getElementById('adminBadge');
+        var btn = document.getElementById('adminBtn');
+        var profileBtn = document.getElementById('profileBtn');
+        var storageBtn = document.getElementById('storageBtn');
+        if (!currentUser) {
+            badge.style.display = 'none';
+            badge.className = 'admin-tag';
+            if (profileBtn) profileBtn.style.display = 'none';
+            if (storageBtn) storageBtn.style.display = 'none';
+            btn.textContent = '登录 / 注册';
+        } else if (isAdmin) {
+            badge.style.display = 'inline-block';
+            badge.className = 'admin-tag role-admin';
+            badge.textContent = '管理员：' + ((currentUser && currentUser.name) ? currentUser.name : '');
+            if (profileBtn) profileBtn.style.display = '';
+            if (storageBtn) storageBtn.style.display = '';
+            btn.textContent = '管理导航';
+        } else {
+            badge.style.display = 'inline-block';
+            badge.className = 'admin-tag role-user';
+            badge.textContent = (currentUser && currentUser.name) ? currentUser.name : '用户';
+            if (profileBtn) profileBtn.style.display = '';
+            if (storageBtn) storageBtn.style.display = '';
+            btn.textContent = '退出';
+        }
+    }
+
+    function initAuth() {
+        if (!supabase) return;
+        supabase.auth.getSession().then(function (res) {
+            if (res.data && res.data.session) {
+                resolveUser(res.data.session.user).then(function () {
+                    updateAuthUI();
+                });
+            } else {
+                updateAuthUI();
+            }
+        }).catch(function () { updateAuthUI(); });
+    }
+
+    function openProfile() {
+        if (!currentUser) return;
+        document.getElementById('profileName').value = currentUser.name || '';
+        document.getElementById('profileOldPass').value = '';
+        document.getElementById('profileNewPass').value = '';
+        document.getElementById('profileConfirmPass').value = '';
+        openModal('profileModal');
+        setTimeout(function () {
+            var el = document.getElementById('profileName');
+            if (el) el.focus();
+        }, 150);
+    }
+
+    function saveProfile() {
+        if (!currentUser || !supabase) { showToast('请先登录', 'error'); return; }
+        var newName = document.getElementById('profileName').value.trim();
+        var oldPass = document.getElementById('profileOldPass').value;
+        var newPass = document.getElementById('profileNewPass').value;
+        var confPass = document.getElementById('profileConfirmPass').value;
+        var email = currentUser.email;
+
+        if (newName.length > 30) { showToast('用户名过长', 'error'); return; }
+        var passChange = !!(newPass || oldPass || confPass);
+        if (passChange) {
+            if (!oldPass) { showToast('修改密码需先填写当前密码', 'error'); return; }
+            if (newPass.length < 6) { showToast('新密码至少需 6 位', 'error'); return; }
+            if (newPass !== confPass) { showToast('两次新密码不一致', 'error'); return; }
+        }
+
+        var verify = passChange
+            ? supabase.auth.signInWithPassword({ email: email, password: oldPass })
+            : Promise.resolve({ error: null });
+
+        verify.then(function (vres) {
+            if (vres && vres.error) { throw new Error('当前密码不正确'); }
+            var updates = {};
+            if (newName && newName !== currentUser.name) { updates.data = { username: newName }; }
+            if (newPass) { updates.password = newPass; }
+            if (Object.keys(updates).length === 0) {
+                showToast('没有需要修改的内容', 'info');
+                return Promise.resolve(null);
+            }
+            return supabase.auth.updateUser(updates);
+        }).then(function (res) {
+            if (res && res.error) { throw new Error(res.error.message); }
+            if (res === null) {
+                closeModal('profileModal');
+                return;
+            }
+            return supabase.auth.getUser();
+        }).then(function (gres) {
+            if (gres && gres.data && gres.data.user) {
+                var u = gres.data.user;
+                currentUser.name = (u.user_metadata && u.user_metadata.username) || u.email;
+                isAdmin = (currentUser.role === 'admin');
+            }
+            updateAuthUI();
+            document.getElementById('profileOldPass').value = '';
+            document.getElementById('profileNewPass').value = '';
+            document.getElementById('profileConfirmPass').value = '';
+            closeModal('profileModal');
+            showToast('资料已更新', 'success');
+        }).catch(function (e) {
+            showToast((e && e.message) ? e.message : '更新失败', 'error');
+        });
     }
 
     // ============================================================
@@ -598,6 +522,17 @@
         }, 150);
     }
 
+    function reloadNavFromDB() {
+        if (!supabase) { renderGrid(); renderAdminList(); return; }
+        supabase.from(NAV_TABLE).select('*').order('sort', { ascending: true })
+            .then(function (res) {
+                if (!res.error && Array.isArray(res.data)) { navItems = res.data; }
+                renderGrid();
+                renderAdminList();
+            })
+            .catch(function () { renderGrid(); renderAdminList(); });
+    }
+
     function saveItem() {
         var name = document.getElementById('itemName').value.trim();
         var path = document.getElementById('itemPath').value.trim();
@@ -605,31 +540,62 @@
         if (!path) { showToast('请输入路径', 'error'); return; }
 
         var editIndex = parseInt(document.getElementById('editIndex').value, 10);
-        var newItem = { name: name, path: path, type: currentPathType };
 
-        if (editIndex === -1) {
-            navItems.push(newItem);
-            showToast('添加成功', 'success');
-        } else {
-            navItems[editIndex] = newItem;
-            showToast('修改成功', 'success');
+        // Supabase 不可用时的本地回退
+        if (!supabase) {
+            var localItem = { name: name, path: path, type: currentPathType };
+            if (editIndex === -1) { navItems.push(localItem); showToast('添加成功', 'success'); }
+            else { navItems[editIndex] = localItem; showToast('修改成功', 'success'); }
+            closeModal('itemModal');
+            renderGrid();
+            renderAdminList();
+            return;
         }
 
-        closeModal('itemModal');
-        saveNavToStorage();
-        renderGrid();
-        renderAdminList();
+        if (editIndex === -1) {
+            var sort = navItems.length || 0;
+            supabase.from(NAV_TABLE).insert({ name: name, path: path, type: currentPathType, sort: sort })
+                .then(function (res) {
+                    if (res.error) { showToast('添加失败：' + res.error.message, 'error'); return; }
+                    closeModal('itemModal');
+                    showToast('添加成功', 'success');
+                    reloadNavFromDB();
+                })
+                .catch(function (e) { showToast('添加失败：' + (e.message || e), 'error'); });
+        } else {
+            var item = navItems[editIndex];
+            if (!item || item.id === undefined) { showToast('该记录无效，请刷新后重试', 'error'); return; }
+            supabase.from(NAV_TABLE).update({ name: name, path: path, type: currentPathType }).eq('id', item.id)
+                .then(function (res) {
+                    if (res.error) { showToast('修改失败：' + res.error.message, 'error'); return; }
+                    closeModal('itemModal');
+                    showToast('修改成功', 'success');
+                    reloadNavFromDB();
+                })
+                .catch(function (e) { showToast('修改失败：' + (e.message || e), 'error'); });
+        }
     }
 
     function deleteItem(index) {
         if (index < 0 || index >= navItems.length) return;
-        var name = navItems[index].name;
+        var item = navItems[index];
+        var name = item.name;
         if (!confirm('确定删除「' + name + '」吗？此操作不可撤销。')) return;
-        navItems.splice(index, 1);
-        saveNavToStorage();
-        renderGrid();
-        renderAdminList();
-        showToast('已删除「' + name + '」', 'info');
+
+        if (!supabase || item.id === undefined) {
+            navItems.splice(index, 1);
+            renderGrid();
+            renderAdminList();
+            showToast('已删除「' + name + '」', 'info');
+            return;
+        }
+        supabase.from(NAV_TABLE).delete().eq('id', item.id)
+            .then(function (res) {
+                if (res.error) { showToast('删除失败：' + res.error.message, 'error'); return; }
+                showToast('已删除「' + name + '」', 'info');
+                reloadNavFromDB();
+            })
+            .catch(function (e) { showToast('删除失败：' + (e.message || e), 'error'); });
     }
 
     // ============================================================
@@ -645,11 +611,23 @@
 
     function importConfig(e) {
         handleImportJSON(e, function (data) {
-            navItems = data;
-            saveNavToStorage();
-            renderGrid();
-            renderAdminList();
-            showToast('导入成功', 'success');
+            if (!supabase) { showToast('导入失败：未连接数据库', 'error'); return; }
+            var rows = data.map(function (it, i) {
+                return {
+                    name: it.name || '',
+                    path: it.path || '',
+                    type: (it.type === 'url' ? 'url' : 'path'),
+                    sort: (it.sort != null ? it.sort : i)
+                };
+            });
+            if (!rows.length) { showToast('导入内容为空', 'info'); return; }
+            supabase.from(NAV_TABLE).insert(rows)
+                .then(function (res) {
+                    if (res.error) { showToast('导入失败：' + res.error.message, 'error'); return; }
+                    showToast('导入成功 ' + rows.length + ' 项', 'success');
+                    reloadNavFromDB();
+                })
+                .catch(function (err) { showToast('导入失败：' + (err.message || err), 'error'); });
         });
     }
 
@@ -859,6 +837,8 @@
     window.toggleLogin = toggleLogin;
     window.doLogin = doLogin;
     window.doLogout = doLogout;
+    window.openProfile = openProfile;
+    window.saveProfile = saveProfile;
     window.openAddModal = openAddModal;
     window.saveItem = saveItem;
     window.exportConfig = exportConfig;
@@ -879,5 +859,6 @@
     // ============================================================
     initTheme();
     bindModals();
+    initAuth();
     loadNavItems();
 })();

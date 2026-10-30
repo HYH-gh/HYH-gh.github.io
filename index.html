@@ -64,20 +64,21 @@
             <input type="hidden" id="loginMode" value="login">
             <div class="form-group" id="loginNameGroup" style="display:none">
                 <label>用户名</label>
-                <input type="text" id="loginName" placeholder="给自己起个用户名（可选）" autocomplete="nickname" maxlength="30">
+                <input type="text" id="loginName" placeholder="给自己起个用户名（可选）" autocomplete="nickname" maxlength="30" oninput="clearAuthMsg()">
             </div>
             <div class="form-group">
                 <label>邮箱</label>
-                <input type="email" id="loginUser" placeholder="请输入邮箱" autocomplete="email">
+                <input type="email" id="loginUser" placeholder="请输入邮箱" autocomplete="email" oninput="clearAuthMsg()">
             </div>
             <div class="form-group">
                 <label>密码</label>
-                <input type="password" id="loginPass" placeholder="请输入密码" autocomplete="current-password" onkeydown="if(event.key==='Enter') dispatchAuthAction()">
+                <input type="password" id="loginPass" placeholder="请输入密码（至少 6 位）" autocomplete="current-password" oninput="clearAuthMsg()" onkeydown="if(event.key==='Enter') dispatchAuthAction()">
             </div>
             <div class="form-group" id="loginPass2Group" style="display:none">
                 <label>确认密码</label>
-                <input type="password" id="loginPass2" placeholder="请再次输入密码" autocomplete="new-password" onkeydown="if(event.key==='Enter') dispatchAuthAction()">
+                <input type="password" id="loginPass2" placeholder="请再次输入密码" autocomplete="new-password" oninput="clearAuthMsg()" onkeydown="if(event.key==='Enter') dispatchAuthAction()">
             </div>
+            <div class="auth-inline-msg" id="loginMsg" style="display:none"></div>
             <button class="login-switch-link" id="loginSwitchLink" type="button" onclick="switchLoginMode()">没有账号？去注册</button>
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeModal('loginModal')">取消</button>

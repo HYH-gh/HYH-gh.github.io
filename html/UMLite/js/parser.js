@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿/* ---------------- 解析层 ---------------- */
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿/* ---------------- 解析层 ---------------- */
 
 const DIAGRAM_ALIASES = {
   class: 'class', classdiagram: 'class', '类图': 'class',
@@ -121,7 +121,7 @@ function parseEdgeLine(text) {
 
 /* -------- 类图 / ER / 状态 / 组件 / 部署 / 对象 / 包 / 用例 -------- */
 
-const DECL_RE = /^(abstract\s+class|class|interface|enum|struct|annotation|trait|entity|component|node|artifact|object|package|state|actor|usecase|database|table|boundary|notice)\b(.*)$/i;
+const DECL_RE = /^((?:business\s+)?(?:abstract\s+class|class|interface|enum|struct|annotation|trait|entity|component|node|artifact|object|package|state|actor|usecase|database|table|boundary|notice))\b(.*)$/i;
 
 function parseClassLike(lines, type) {
   const nodes = new Map();
@@ -364,7 +364,7 @@ const SEQ_OPS = [
   { op: '-->', kind: 'return', dash: true,  fill: false }, // 返回消息：虚线开放箭头
   { op: '->',  kind: 'simple', dash: false, fill: false }, // 简单消息：实线开放箭头
 ];
-const SEQ_PART_KINDS = ['actor', 'object', 'control', 'entity', 'boundary'];
+const SEQ_PART_KINDS = ['actor', 'object', 'control', 'entity', 'boundary', 'worker'];
 
 function parseSequence(lines) {
   const participants = [];
@@ -395,9 +395,10 @@ function parseSequence(lines) {
   for (const { text } of lines) {
     let m;
     // 1. 参与者声明（角色 / 对象 / 控制类 / 实体类 / 边界类）
-    if ((m = text.match(/^(actor|object|control|entity|boundary|participant)\s+(.+)$/i))) {
-      const kind = m[1].toLowerCase() === 'participant' ? 'object' : m[1].toLowerCase();
-      let rest = m[2].trim();
+    if ((m = text.match(/^(?:(business)\s+)?(actor|object|control|entity|boundary|worker|participant)\s+(.+)$/i))) {
+      const base = m[2].toLowerCase() === 'participant' ? 'object' : m[2].toLowerCase();
+      const kind = m[1] ? 'bus' + base : base;
+      let rest = m[3].trim();
       const am = rest.match(/^(.+?)\s+as\s+(\S+)$/i);
       let ref, label;
       if (am) { label = readToken(am[1])[0]; ref = am[2].trim(); }
@@ -579,6 +580,20 @@ function parseLayoutBlock(lines, type) {
       out.push({ kind: 'laneNode', id: lm[1], lane: lm[2].trim(), x: lx, y: ly,
                  w: lm[5] != null ? parseFloat(lm[5]) : undefined,
                  h: lm[6] != null ? parseFloat(lm[6]) : undefined });
+      continue;
+    }
+    // 连线折点：edge <起点>-><终点> bend <序号> @ (x, y)　坐标即折点绝对位置，序号为沿线(bends)顺序
+    const be = raw.match(/^edge\s+(.+?)\s*->\s*(.+?)\s+bend\s+(\d+)\s+@\s*\(\s*([-+0-9.]+)\s*,\s*([-+0-9.]+)\s*\)\s*$/i);
+    if (be) {
+      const x = parseFloat(be[4]), y = parseFloat(be[5]);
+      if (!isNaN(x) && !isNaN(y)) out.push({ kind: 'edgeBend', from: be[1].trim(), to: be[2].trim(), idx: +be[3], x, y });
+      continue;
+    }
+    // 连线端点锚点：edge <起点>-><终点> (start|end) (dx, dy)　dx/dy 为相对起点/终点节点中心的边缘偏移
+    const an = raw.match(/^edge\s+(.+?)\s*->\s*(.+?)\s+(start|end)\s*\(\s*([-+0-9.]+)\s*,\s*([-+0-9.]+)\s*\)\s*$/i);
+    if (an) {
+      const dx = parseFloat(an[4]), dy = parseFloat(an[5]);
+      if (!isNaN(dx) && !isNaN(dy)) out.push({ kind: 'edgeAnchor', from: an[1].trim(), to: an[2].trim(), which: an[3].toLowerCase(), dx, dy });
       continue;
     }
     const m = raw.match(/^(.+?)\s+@\s*\(\s*([-+0-9.]+)\s*,\s*([-+0-9.]+)\s*\)\s*(?:([-0-9.]+)\s+([-0-9.]+))?\s*$/i);

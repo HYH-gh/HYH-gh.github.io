@@ -2,13 +2,38 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%93%9A%3C/text%3E%3C/svg%3E"
+    />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>分级词库 · 背单词</title>
-    <script type="module" crossorigin src="/assets/index-y2d4GmD8.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-lERDhA_5.css">
+    <link rel="stylesheet" href="./css/style.css" />
   </head>
   <body>
     <div id="app"></div>
+
+    <!-- 工具层：乱序算法、本地存储、文本格式化 -->
+    <script src="./js/utils.js"></script>
+    <!-- 数据层：用 <script> 按需注入 ./data/*.js（file:// 下也能加载） -->
+    <script src="./js/api.js"></script>
+    <!-- AI 层：OpenAI 兼容接口流式请求 -->
+    <script src="./js/ai.js"></script>
+    <!-- 极简 DOM 辅助 -->
+    <script src="./js/dom.js"></script>
+
+    <!-- 组件 -->
+    <script src="./js/components/word-list.js"></script>
+
+    <!-- 页面 -->
+    <script src="./js/views/home.js"></script>
+    <script src="./js/views/level.js"></script>
+    <script src="./js/views/custom.js"></script>
+    <script src="./js/views/word.js"></script>
+    <script src="./js/views/settings.js"></script>
+
+    <!-- 路由与启动 -->
+    <script src="./js/router.js"></script>
+    <script src="./js/app.js"></script>
   </body>
 </html>

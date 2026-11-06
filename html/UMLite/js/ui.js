@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿/* ---------------- UI 绑定 ---------------- */
+/* ---------------- UI 绑定 ---------------- */
 
 const editor = document.getElementById('editor');
 editor.addEventListener('input', renderDebounced);
@@ -36,6 +36,11 @@ function loadUml(file) {
   const r = new FileReader();
   r.onload = () => {
     if (typeof r.result !== 'string') return;
+    // 单图导入：进当前选中的目录（没有选中就是根目录），逻辑与以前一样，只是一次多建一个文件
+    if (typeof fsImportSingle === 'function') {
+      fsImportSingle(r.result, file.name);
+      return;
+    }
     editor.value = r.result;
     render();
     setStatus(`已导入 ${file.name} 并渲染`, 'ok');
@@ -79,89 +84,6 @@ bind('btn-src', () => {
   setStatus('已导出 diagram.uml（含当前位置信息）', 'ok');
 });
 
-/* 把当前画布坐标序列化为 @layout 位置块。
-   - 活动图：仅导出泳道与活动边（内部节点无稳定标识，不导出）
-   - 时序图：不支持（返回空）
-   - 其余图：导出全部具名节点 + 系统边界框 */
-function positionBlockFor(model) {
-  if (!model || !currentModel) return '';
-  if (model.type === 'activity') {
-    const lines = ['@layout'];
-    (model.swimlanes || []).forEach(s =>
-      lines.push(`lane ${s.label} @ (${Math.round(s.x)}, ${Math.round(s.y)}) ${Math.round(s.w)} ${Math.round(s.h)}`));
-    if (model.activityEdge) {
-      const b = model.activityEdge;
-      lines.push(`boundary @ (${Math.round(b.x)}, ${Math.round(b.y)}) ${Math.round(b.w)} ${Math.round(b.h)}`);
-    }
-    // 泳道内元素：二级定位，坐标相对其泳道（泳道即内部元素的画布）
-    for (const n of model.nodes || []) {
-      if (n.kind === 'pseudo' || !n.lane) continue;
-      const s = (model.swimlanes || []).find(x => x.label === n.lane);
-      if (!s) continue;
-      lines.push(`${n.id} @ lane ${s.label} (${Math.round(n.x - s.x)}, ${Math.round(n.y - s.y)}) ${Math.round(n.w)} ${Math.round(n.h)}`);
-    }
-    // 连线折点：按 <from>-><to> + 沿线序号 round-trip（活动图 from/to 为节点 id，稳定引用）
-    (model.edges || []).forEach(e => {
-      if (e.from == null || e.to == null || !e.bends) return;
-      e.bends.forEach((b, k) => {
-        if (!isFinite(b.x) || !isFinite(b.y)) return;
-        lines.push(`edge ${e.from}->${e.to} bend ${k} @ (${Math.round(b.x)}, ${Math.round(b.y)})`);
-      });
-      if (e.aAnchor && isFinite(e.aAnchor.dx) && isFinite(e.aAnchor.dy))
-        lines.push(`edge ${e.from}->${e.to} start (${Math.round(e.aAnchor.dx)}, ${Math.round(e.aAnchor.dy)})`);
-      if (e.bAnchor && isFinite(e.bAnchor.dx) && isFinite(e.bAnchor.dy))
-        lines.push(`edge ${e.from}->${e.to} end (${Math.round(e.bAnchor.dx)}, ${Math.round(e.bAnchor.dy)})`);
-    });
-    return lines.length > 1 ? lines.join('\n') : '';
-  }
-  // 时序图：导出参与者 / 消息 / 激活 / 组合片段的位置
-  if (model.type === 'sequence') {
-    const lines = ['@layout'];
-    if (model.lifeBottom != null) lines.push(`lifeBottom ${Math.round(model.lifeBottom)}`);
-    for (const p of model.participants || []) {
-      lines.push(`participant ${p.ref} @ (${Math.round(p.x)}, ${Math.round(p.y)}) ${Math.round(p.w)} ${Math.round(p.h)}`);
-    }
-    (model.messages || []).forEach((m, i) =>
-      lines.push(`message ${i} @ (_, ${Math.round(m.y)})`));
-    (model.activations || []).forEach((a, i) =>
-      lines.push(`activation ${i} @ (_, ${Math.round(a.startY)}) ${Math.round(a.endY - a.startY)}`));
-    (model.fragments || []).forEach((f, i) =>
-      lines.push(`fragment ${i} @ (${Math.round(f.x)}, ${Math.round(f.y)}) ${Math.round(f.w)} ${Math.round(f.h)}`));
-    return lines.length > 1 ? lines.join('\n') : '';
-  }
-  const lines = ['@layout'];
-  for (const n of model.nodes || []) {
-    if (n.kind === 'pseudo') continue;
-    lines.push(`${n.label} @ (${Math.round(n.x)}, ${Math.round(n.y)}) ${Math.round(n.w)} ${Math.round(n.h)}`);
-  }
-  // 连线折点：按 <from>-><to> + 沿线序号 round-trip（from/to 即节点名，稳定引用）
-  (model.edges || []).forEach(e => {
-    if (e.from == null || e.to == null || !e.bends) return;
-    e.bends.forEach((b, k) => {
-      if (!isFinite(b.x) || !isFinite(b.y)) return;
-      lines.push(`edge ${e.from}->${e.to} bend ${k} @ (${Math.round(b.x)}, ${Math.round(b.y)})`);
-    });
-    if (e.aAnchor && isFinite(e.aAnchor.dx) && isFinite(e.aAnchor.dy))
-      lines.push(`edge ${e.from}->${e.to} start (${Math.round(e.aAnchor.dx)}, ${Math.round(e.aAnchor.dy)})`);
-    if (e.bAnchor && isFinite(e.bAnchor.dx) && isFinite(e.bAnchor.dy))
-      lines.push(`edge ${e.from}->${e.to} end (${Math.round(e.bAnchor.dx)}, ${Math.round(e.bAnchor.dy)})`);
-  });
-  if (model.boundary) {
-    const b = model.boundary;
-    lines.push(`boundary @ (${Math.round(b.x)}, ${Math.round(b.y)}) ${Math.round(b.w)} ${Math.round(b.h)}`);
-  }
-  return lines.length > 1 ? lines.join('\n') : '';
-}
-
-/* 在源码末尾追加/替换位置块（不修改用户原有主体代码） */
-function withPositionBlock(src, model) {
-  const block = positionBlockFor(model);
-  if (!block) return src;
-  const idx = src.search(/^@layout\b/m);
-  const base = (idx >= 0 ? src.slice(0, idx) : src).replace(/\s+$/, '');
-  return base + '\n\n' + block + '\n';
-}
-
 bind('btn-copy', async () => {
   try {
     await navigator.clipboard.writeText(editor.value);
@@ -183,6 +105,114 @@ bind('btn-doc', async () => {
   }
 });
 
+/* ---------------- 整个项目导入 / 导出 ---------------- */
+
+/* 通用选择弹窗：resolve 被点按钮的 id，取消（按钮 / 点遮罩 / Esc）则 null */
+let askClose = null;
+
+function askChoice(opts) {
+  return new Promise((resolve) => {
+    const mask = document.getElementById('ask-mask');
+    const titleEl = document.getElementById('ask-title');
+    const msgEl = document.getElementById('ask-msg');
+    const extraEl = document.getElementById('ask-extra');
+    const actions = document.getElementById('ask-actions');
+    const cancel = document.getElementById('ask-cancel');
+    if (!mask || !actions) { resolve(opts.buttons[0] ? opts.buttons[0].id : null); return; }
+    if (titleEl) titleEl.textContent = opts.title || '请选择';
+    if (msgEl) msgEl.textContent = opts.message || '';
+    if (extraEl) {
+      extraEl.textContent = opts.extra || '';
+      extraEl.style.display = opts.extra ? '' : 'none';
+    }
+    actions.innerHTML = '';
+    let closed = false;
+    const close = (val) => {
+      if (closed) return;
+      closed = true;
+      askClose = null;
+      mask.classList.remove('is-open');
+      mask.setAttribute('aria-hidden', 'true');
+      resolve(val);
+    };
+    askClose = close;
+    for (const b of opts.buttons) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.setAttribute('class', 'ask-btn' + (b.primary ? ' primary' : '') + (b.danger ? ' danger' : ''));
+      btn.textContent = b.label;
+      btn.addEventListener('click', () => close(b.id));
+      actions.appendChild(btn);
+    }
+    if (cancel) cancel.onclick = () => close(null);
+    mask.classList.add('is-open');
+    mask.setAttribute('aria-hidden', 'false');
+    const first = actions.children[0];
+    if (first && first.focus) first.focus();
+  });
+}
+
+/* 点遮罩关闭 / Esc 关闭：只挂一次 */
+(function bindAskDismiss() {
+  const mask = document.getElementById('ask-mask');
+  if (mask) mask.addEventListener('click', (e) => { if (e.target === mask && askClose) askClose(null); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && askClose) { e.preventDefault(); askClose(null); }
+  });
+})();
+
+const projInput = document.getElementById('file-project');
+bind('btn-proj-open', () => projInput && projInput.click());
+if (projInput) projInput.addEventListener('change', () => {
+  const f = projInput.files && projInput.files[0];
+  if (f) loadProject(f);
+  projInput.value = '';
+});
+
+function loadProject(file) {
+  const r = new FileReader();
+  r.onload = async () => {
+    let data, preview;
+    try {
+      data = JSON.parse(String(r.result));
+    } catch (e) {
+      setStatus('项目文件不是有效的 JSON', 'err');
+      return;
+    }
+    try {
+      preview = fsParseProject(data);
+    } catch (e) {
+      setStatus('导入失败：' + e.message, 'err');
+      return;
+    }
+    const count = fsCountFiles(preview);
+    const mode = await askChoice({
+      title: '导入项目',
+      message: `「${preview.name}」共 ${count} 张图，要怎么并入当前内容？`,
+      extra: '覆盖：清空现在的目录，只留导入的这一套\n插入：保留现有内容，把导入的当成一个子目录',
+      buttons: [
+        { id: 'insert', label: '作为子目录插入', primary: true },
+        { id: 'overwrite', label: '覆盖当前内容' }
+      ]
+    });
+    if (!mode) { setStatus('已取消导入', 'ok'); return; }
+    const res = fsImportProject(data, mode);
+    setStatus(mode === 'overwrite'
+      ? `已用导入的项目覆盖当前内容（${res.count} 张图）`
+      : `已插入子目录「${res.name}」（${res.count} 张图）`, 'ok');
+  };
+  r.onerror = () => setStatus('文件读取失败', 'err');
+  r.readAsText(file, 'utf-8');
+}
+
+bind('btn-proj-save', () => {
+  if (typeof fsExportProject !== 'function') return;
+  if (typeof fsSyncCurrent === 'function') fsSyncCurrent();
+  const data = fsExportProject();
+  saveBlob(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' }), 'umlite-project.json');
+  setStatus(`已导出整个项目（${fsCountFiles(fsRoot)} 张图）`, 'ok');
+});
+
 bind('btn-reset', () => {
   if (!currentModel) return;
   fitView();
@@ -190,7 +220,7 @@ bind('btn-reset', () => {
   setStatus('视图已复位', 'ok');
 });
 
-bind('btn-refresh', () => render());
+bind('btn-refresh', () => render({ force: true }));
 
 /* ---------------- 分隔条拖拽（面板宽度可调） ---------------- */
 
@@ -240,6 +270,33 @@ window.addEventListener('resize', () => {
     paint();
   }, 160);
 });
+
+/* ---------------- 窄屏：代码 / 预览 标签切换 ---------------- */
+
+const paneTabs = document.getElementById('pane-tabs');
+
+function setMobilePane(which) {
+  if (document.body.dataset) document.body.dataset.pane = which;
+  else document.body.setAttribute('data-pane', which);
+  if (paneTabs) {
+    paneTabs.querySelectorAll('button[data-pane]').forEach((b) => {
+      b.setAttribute('aria-selected', b.getAttribute('data-pane') === which ? 'true' : 'false');
+    });
+  }
+  // 预览刚从隐藏切回来：此刻画布尺寸才有效，需要重新适配一次
+  if (which === 'preview' && currentModel) {
+    fitView();
+    paint();
+  }
+}
+
+if (paneTabs) {
+  paneTabs.addEventListener('click', (evt) => {
+    const btn = evt.target && evt.target.closest ? evt.target.closest('button[data-pane]') : null;
+    if (btn) setMobilePane(btn.getAttribute('data-pane'));
+  });
+  setMobilePane('code');
+}
 
 /* ---------------- 二级下拉菜单 ---------------- */
 function closeAllMenus() {

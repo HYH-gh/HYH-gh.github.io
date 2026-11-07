@@ -74,6 +74,93 @@
         }, 2500);
     }
 
+    // ---------- 全局加载指示（顶部进度条 + 引用计数） ----------
+    var loadingCount = 0;
+    function ensureLoadingBar() {
+        var bar = document.getElementById('globalLoadingBar');
+        if (bar) return bar;
+        bar = document.createElement('div');
+        bar.id = 'globalLoadingBar';
+        bar.className = 'global-loading-bar';
+        document.body.appendChild(bar);
+        return bar;
+    }
+    function startLoading() {
+        loadingCount++;
+        ensureLoadingBar().classList.add('active');
+    }
+    function endLoading() {
+        loadingCount = Math.max(0, loadingCount - 1);
+        if (loadingCount === 0) {
+            var bar = document.getElementById('globalLoadingBar');
+            if (bar) bar.classList.remove('active');
+        }
+    }
+
+    // ---------- 通用健壮性工具 ----------
+    // 带超时的请求封装：避免网络异常时 Promise 永久悬挂
+    function withTimeout(promise, ms, label) {
+        return new Promise(function (resolve, reject) {
+            var done = false;
+            var t = setTimeout(function () {
+                if (done) return;
+                done = true;
+                reject(new Error(label + '超时，请检查网络后重试'));
+            }, ms || 20000);
+            promise.then(function (v) {
+                if (done) return; done = true; clearTimeout(t); resolve(v);
+            }, function (e) {
+                if (done) return; done = true; clearTimeout(t); reject(e);
+            });
+        });
+    }
+
+    // 把 Supabase / 网络错误翻译成用户可读的中文
+    function svcErrMsg(err) {
+        if (!err) return '操作失败，请稍后再试';
+        var msg = (typeof err === 'string') ? err : (err.message || String(err));
+        if (/Failed to fetch|NetworkError|network|Load failed/i.test(msg))
+            return '网络连接失败，请检查网络后重试';
+        if (/timeout|aborted/i.test(msg))
+            return '请求超时，请检查网络后重试';
+        if (/rate limit|too many/i.test(msg))
+            return '操作过于频繁，请稍后再试';
+        if (/not found|does not exist|InvalidKey/i.test(msg))
+            return '文件或文件夹不存在（可能已被删除或移动），请刷新列表';
+        if (/Duplicate|already exists/i.test(msg))
+            return '同名文件或文件夹已存在';
+        if (/Payload Too Large|exceed/i.test(msg))
+            return '文件过大或超出限制';
+        if (/Unauthorized|JWT|401|invalid claim/i.test(msg))
+            return '登录状态已过期，请重新登录';
+        if (/row-level security|permission|forbidden/i.test(msg))
+            return '没有执行此操作的权限';
+        return msg;
+    }
+
+    // 操作互斥：破坏性/复杂操作进行中时禁止并发触发同类操作
+    var opBusy = null;   // null | 'upload' | 'rename' | 'delete'
+    function isBusy() { return opBusy !== null; }
+    function tryBeginOp(name) {
+        if (isBusy()) { showToast('正在处理上一个操作，请稍候…', 'info'); return false; }
+        opBusy = name;
+        return true;
+    }
+    function endOp() { opBusy = null; }
+
+    // 列表/预览的“过期响应”防护：只接受最新一次请求的结果
+    var listToken = 0;
+    var previewToken = 0;
+
+    // 登录态过期时统一处理：提示后跳回主页
+    var sessionExpired = false;
+    function handleSessionExpired() {
+        if (sessionExpired) return;
+        sessionExpired = true;
+        showToast('登录状态已过期，即将返回主页重新登录…', 'error');
+        setTimeout(function () { window.location.href = 'index.html'; }, 1500);
+    }
+
     // ---------- 导航（面包屑） ----------
     function renderPath() {
         var el = document.getElementById('pathBar');
@@ -92,21 +179,40 @@
         var listEl = document.getElementById('storageList');
         var hintEl = document.getElementById('storageHint');
         renderPath();
-        listEl.innerHTML = '<div class="storage-progress">加载中…</div>';
-        if (!currentUser) { listEl.innerHTML = '<div class="storage-empty">未登录</div>'; return; }
+        if (!currentUser || !supabase) {
+            listEl.innerHTML = '<div class="storage-empty">' + (currentUser ? '存储服务不可用' : '未登录') + '</div>';
+            return;
+        }
+        listEl.innerHTML = '<div class="storage-progress">正在加载…</div>';
         loadStorageUsage();
+
+        // 过期响应防护：快速连续切换目录时，只渲染最后一次请求的结果
+        var token = ++listToken;
 
         // 根目录直接枚举用户自己的文件夹（{uid}），而不是桶根，避免暴露用户 id 目录
         var opts = { sortBy: { column: 'name', order: 'asc' } };
-        supabase.storage.from(STORAGE_BUCKET).list(basePath(), opts)
+        startLoading();
+        withTimeout(supabase.storage.from(STORAGE_BUCKET).list(basePath(), opts), 20000, '文件列表加载')
             .then(function (res) {
+                endLoading();
+                if (token !== listToken) return;   // 已有更新的请求，丢弃本结果
                 if (res.error) {
-                    listEl.innerHTML = '<div class="storage-empty">加载失败：' + escapeHtml(res.error.message) + '</div>';
+                    var msg = svcErrMsg(res.error);
+                    if (/登录状态已过期/.test(msg)) handleSessionExpired();
+                    listEl.innerHTML = '<div class="storage-empty">加载失败：' + escapeHtml(msg) + '</div>';
+                    showToast('文件列表加载失败：' + msg, 'error');
                     return;
                 }
                 renderStorageList(res.data || []);
             })
-            .catch(function (e) { listEl.innerHTML = '<div class="storage-empty">加载失败：' + escapeHtml(e.message || e) + '</div>'; });
+            .catch(function (e) {
+                endLoading();
+                if (token !== listToken) return;
+                var msg = svcErrMsg(e);
+                if (/登录状态已过期/.test(msg)) handleSessionExpired();
+                listEl.innerHTML = '<div class="storage-empty">加载失败：' + escapeHtml(msg) + '</div>';
+                showToast('文件列表加载失败：' + msg, 'error');
+            });
     }
 
     // ---------- 存储用量（依赖后端 RPC：public.get_my_storage_usage） ----------
@@ -114,20 +220,27 @@
         var textEl = document.getElementById('storageUsageText');
         var fillEl = document.getElementById('storageUsageFill');
         if (!currentUser) return;
-        supabase.rpc('get_my_storage_usage')
+        startLoading();
+        withTimeout(supabase.rpc('get_my_storage_usage'), 15000, '存储用量查询')
             .then(function (res) {
+                endLoading();
                 if (res.error) { textEl.textContent = '—'; fillEl.style.width = '0%'; return; }
-                var used = (res.data && res.data.used_bytes) ? Number(res.data.used_bytes) : 0;
+                var used = (res.data && res.data.used_bytes != null) ? Number(res.data.used_bytes) : 0;
                 var objCount = (res.data && res.data.objects) ? Number(res.data.objects) : 0;
-                // 优先用后端按用户返回的配额，否则用前端默认值兜底
-                var quota = (res.data && res.data.quota_bytes) ? Number(res.data.quota_bytes) : STORAGE_QUOTA;
+                // 优先用后端按用户返回的配额，否则用前端默认值兜底；防御非法值
+                var quota = (res.data && Number(res.data.quota_bytes) > 0) ? Number(res.data.quota_bytes) : STORAGE_QUOTA;
                 var remain = Math.max(0, quota - used);
                 var pct = quota ? Math.min(100, (used / quota) * 100) : 0;
                 textEl.textContent = '已用 ' + formatBytes(used) + ' · 剩余 ' + formatBytes(remain) + '（' + objCount + ' 个对象）';
                 fillEl.style.width = pct.toFixed(1) + '%';
                 fillEl.style.background = (pct > 90) ? 'var(--danger, #e5534b)' : 'var(--accent)';
             })
-            .catch(function () { textEl.textContent = '—'; fillEl.style.width = '0%'; });
+            .catch(function (e) {
+                endLoading();
+                textEl.textContent = '—';
+                fillEl.style.width = '0%';
+                console.warn('存储用量查询失败:', e);
+            });
     }
 
     function renderStorageList(files) {
@@ -197,24 +310,80 @@
     };
 
     // ---------- 上传 ----------
+    var MAX_UPLOAD_SIZE = 50 * 1024 * 1024;   // 单文件上限 50MB（Storage 服务通常另有限制）
+    var UPLOAD_CONCURRENCY = 3;               // 并发上传数，避免一次拖几十个文件把浏览器打爆
+
+    // 过滤不合法的文件并给出提示；返回可上传的文件数组
+    function pickUploadableFiles(files) {
+        var ok = [];
+        var rejected = [];
+        files.forEach(function (file) {
+            var name = file.name;
+            if (!isValidName(name)) { rejected.push(name + '（文件名不合法）'); return; }
+            if (file.size > MAX_UPLOAD_SIZE) { rejected.push(name + '（超过 ' + formatBytes(MAX_UPLOAD_SIZE) + ' 上限）'); return; }
+            ok.push(file);
+        });
+        if (rejected.length) {
+            showToast('已跳过 ' + rejected.length + ' 个文件：' + rejected.slice(0, 3).join('、') + (rejected.length > 3 ? ' 等' : ''), 'error');
+        }
+        return ok;
+    }
+
+    function uploadOne(file, path) {
+        return withTimeout(
+            supabase.storage.from(STORAGE_BUCKET).upload(path, file, { cacheControl: '3600' }),
+            120000, '「' + file.name + '」上传'
+        ).then(function (res) {
+            if (res.error) throw res.error;
+        });
+    }
+
     function uploadStorageFiles(fileList) {
         if (!fileList || !fileList.length) return;
-        var files = Array.prototype.slice.call(fileList);
-        var todo = files.length, doneCount = 0;
-        files.forEach(function (file) {
-            var path = childPath(file.name);
-            supabase.storage.from(STORAGE_BUCKET).upload(path, file, { upsert: true, cacheControl: '3600' })
-                .then(function (res) {
-                    doneCount++;
-                    if (res.error) showToast('上传失败「' + file.name + '」：' + res.error.message, 'error');
-                    if (doneCount === todo) { showToast('上传完成', 'success'); listStorageFiles(); }
-                })
+        if (!currentUser || !supabase) { showToast('未登录或存储服务不可用', 'error'); return; }
+        if (isBusy()) { showToast('正在处理上一个操作，请稍候…', 'info'); return; }
+
+        var files = pickUploadableFiles(Array.prototype.slice.call(fileList));
+        if (!files.length) return;
+
+        // 覆盖保护：与现有文件同名的跳过并提示（避免拖拽时无意覆盖已有文件）
+        var existing = {};
+        (window.__items || []).forEach(function (it) { if (!it._folder) existing[it._name] = true; });
+        var overwrite = files.filter(function (f) { return existing[f.name]; });
+        var todo = files.filter(function (f) { return !existing[f.name]; });
+        if (overwrite.length) {
+            showToast('已跳过同名文件：' + overwrite.slice(0, 3).map(function (f) { return f.name; }).join('、') + (overwrite.length > 3 ? ' 等' : '') + '（如需替换请先删除）', 'error');
+        }
+        if (!todo.length) return;
+
+        opBusy = 'upload';
+        var doneCount = 0, failCount = 0;
+        var cursor = 0;
+
+        startLoading();
+
+        // 简单的并发池：最多 UPLOAD_CONCURRENCY 个同时在传
+        function next() {
+            if (cursor >= todo.length) {
+                if (doneCount === todo.length) {
+                    endOp();
+                    endLoading();
+                    if (failCount === 0) showToast('上传完成（' + doneCount + ' 个文件）', 'success');
+                    else showToast('上传结束：成功 ' + (doneCount - failCount) + ' 个，失败 ' + failCount + ' 个', 'error');
+                    listStorageFiles();
+                }
+                return;
+            }
+            var file = todo[cursor++];
+            uploadOne(file, childPath(file.name))
+                .then(function () { doneCount++; })
                 .catch(function (e) {
-                    doneCount++;
-                    showToast('上传失败「' + file.name + '」：' + (e.message || e), 'error');
-                    if (doneCount === todo) listStorageFiles();
-                });
-        });
+                    doneCount++; failCount++;
+                    showToast('上传失败「' + file.name + '」：' + svcErrMsg(e), 'error');
+                })
+                .then(next);   // 无论成败继续下一个
+        }
+        for (var i = 0; i < Math.min(UPLOAD_CONCURRENCY, todo.length); i++) next();
     }
 
     // ---------- 自定义对话框（替换浏览器默认 prompt/confirm） ----------
@@ -293,22 +462,35 @@
 
     // ---------- 新建文件夹 ----------
     window.newFolder = function () {
+        if (isBusy()) { showToast('正在处理上一个操作，请稍候…', 'info'); return; }
         promptName('新建文件夹', '文件夹名称', '', function (name) {
+            if (!tryBeginOp('folder')) return;
+            startLoading();
             var marker = childPath(name) + '/.gitkeep';
-            supabase.storage.from(STORAGE_BUCKET).upload(marker, new Blob(['']), { contentType: 'text/plain' })
+            withTimeout(
+                supabase.storage.from(STORAGE_BUCKET).upload(marker, new Blob(['']), { contentType: 'text/plain' }),
+                30000, '新建文件夹'
+            )
                 .then(function (res) {
-                    if (res.error) { showToast('新建失败：' + res.error.message, 'error'); return; }
-                    showToast('已创建文件夹', 'success');
+                    endLoading();
+                    endOp();
+                    if (res.error) { showToast('新建失败：' + svcErrMsg(res.error), 'error'); return; }
+                    showToast('已创建文件夹「' + name + '」', 'success');
                     listStorageFiles();
                 })
-                .catch(function (e) { showToast('新建失败：' + (e.message || e), 'error'); });
+                .catch(function (e) {
+                    endLoading();
+                    endOp();
+                    showToast('新建失败：' + svcErrMsg(e), 'error');
+                });
         });
     };
 
     // ---------- 重命名 ----------
     // 递归移动一个文件夹内所有子项（用于文件夹重命名）
     // 与单文件 move 兼容，避免 Supabase 对“文件夹整体 move”前缀语义的多端差异
-    function moveFolderItems(from, to) {
+    // 失败时收集已成功/失败数量，供上层提示“部分成功”
+    function moveFolderItems(from, to, stats) {
         return supabase.storage.from(STORAGE_BUCKET).list(from, { sortBy: { column: 'name', order: 'asc' } })
             .then(function (res) {
                 if (res.error) throw res.error;
@@ -320,10 +502,20 @@
                     var oldChild = from + '/' + name;
                     var newChild = to + '/' + name;
                     if (isFolderEntry(it)) {
-                        tasks.push(moveFolderItems(oldChild, newChild));
+                        tasks.push(moveFolderItems(oldChild, newChild, stats));
                     } else {
-                        tasks.push(supabase.storage.from(STORAGE_BUCKET).move(oldChild, newChild)
-                            .then(function (r) { if (r.error) throw r.error; }));
+                        tasks.push(
+                            supabase.storage.from(STORAGE_BUCKET).move(oldChild, newChild)
+                                .then(function (r) {
+                                    if (r.error) throw r.error;
+                                    stats.ok++;
+                                })
+                                .catch(function (e) {
+                                    stats.fail++;
+                                    stats.errors.push(name + '：' + (e && e.message ? e.message : e));
+                                    if (stats.fail > 20) throw new Error('失败项过多，已中止');   // 防雪崩
+                                })
+                        );
                     }
                 });
                 return Promise.all(tasks);
@@ -333,6 +525,7 @@
     window.renameEntry = function (index) {
         var item = (window.__items || [])[index];
         if (!item) return;
+        if (isBusy()) { showToast('正在处理上一个操作，请稍候…', 'info'); return; }
         var oldName = item._name;
         // 文件才剥扩展名：选中起始位置 = 最后一个 . 的下标（排除扩展名）；文件夹则全选
         var selTo = null;
@@ -342,20 +535,45 @@
         }
         promptName('重命名', '新名称', oldName, function (newName) {
             if (newName === oldName) return;
+            if (!tryBeginOp('rename')) return;
+
+            // 同名冲突预检查（尽力而为；后端仍会兜底）
+            var conflict = (window.__items || []).some(function (it) { return it._name === newName; });
+            if (conflict) {
+                endOp();
+                showToast('「' + newName + '」已存在，请换一个名称', 'error');
+                return;
+            }
+
             var fromPath = childPath(oldName);
             var toPath = childPath(newName);
+            var stats = { ok: 0, fail: 0, errors: [] };
 
             var task = item._folder
-                ? moveFolderItems(fromPath, toPath)
+                ? moveFolderItems(fromPath, toPath, stats)
                 : supabase.storage.from(STORAGE_BUCKET).move(fromPath, toPath)
                     .then(function (r) { if (r.error) throw r.error; });
 
-            task.then(function () {
-                showToast('已重命名', 'success');
-                listStorageFiles();
-            }).catch(function (e) {
-                showToast('重命名失败：' + ((e && e.message) || e), 'error');
-            });
+            startLoading();
+            withTimeout(task, 120000, '重命名')
+                .then(function () {
+                    endLoading();
+                    endOp();
+                    showToast('已重命名为「' + newName + '」', 'success');
+                    listStorageFiles();
+                })
+                .catch(function (e) {
+                    endLoading();
+                    endOp();
+                    var msg = svcErrMsg(e);
+                    if (stats.fail > 0) {
+                        // 文件夹重命名部分成功：明确告知残留情况，建议刷新查看
+                        showToast('重命名部分成功：已移动 ' + stats.ok + ' 个，失败 ' + stats.fail + ' 个，请刷新后检查', 'error');
+                    } else {
+                        showToast('重命名失败：' + msg, 'error');
+                    }
+                    listStorageFiles();
+                });
         }, selTo);
     };
 
@@ -363,10 +581,13 @@
     window.downloadFile = function (index) {
         var item = (window.__items || [])[index];
         if (!item || item._folder) return;
+        if (!supabase) { showToast('存储服务不可用', 'error'); return; }
         var path = childPath(item._name);
+        startLoading();
         // 与预览一致走 download()+Blob，避免 createSignedUrl 的 MIME/CORS 问题
-        supabase.storage.from(STORAGE_BUCKET).download(path)
+        withTimeout(supabase.storage.from(STORAGE_BUCKET).download(path), 60000, '「' + item._name + '」下载')
             .then(function (res) {
+                endLoading();
                 if (res.error || !res.data) throw (res.error || new Error('无内容'));
                 var url = URL.createObjectURL(res.data);
                 var a = document.createElement('a');
@@ -377,26 +598,43 @@
                 document.body.removeChild(a);
                 setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
             })
-            .catch(function (e) { showToast('下载失败：' + ((e && e.message) || e), 'error'); });
+            .catch(function (e) {
+                endLoading();
+                var msg = svcErrMsg(e);
+                if (/登录状态已过期/.test(msg)) handleSessionExpired();
+                showToast('下载失败：' + msg, 'error');
+            });
     };
 
     // ---------- 删除 ----------
     window.deleteEntry = function (index) {
         var item = (window.__items || [])[index];
         if (!item) return;
+        if (isBusy()) { showToast('正在处理上一个操作，请稍候…', 'info'); return; }
+        var hint = item._folder
+            ? '文件夹「' + item._name + '」及其内部的全部内容'
+            : '文件「' + item._name + '」';
         openAppDialog({
             title: '删除确认',
-            message: '确定删除「' + item._name + '」吗？此操作不可撤销。',
+            message: '确定删除' + hint + '吗？此操作不可撤销。',
             onOk: function () {
+                if (!tryBeginOp('delete')) return;
+                startLoading();
                 // remove 对传入路径做前缀匹配，文件夹直接传 uid/名 即可（不带尾斜杠）
                 var paths = [childPath(item._name)];
-                supabase.storage.from(STORAGE_BUCKET).remove(paths)
+                withTimeout(supabase.storage.from(STORAGE_BUCKET).remove(paths), 60000, '删除')
                     .then(function (res) {
-                        if (res.error) { showToast('删除失败：' + res.error.message, 'error'); return; }
+                        endLoading();
+                        endOp();
+                        if (res.error) { showToast('删除失败：' + svcErrMsg(res.error), 'error'); return; }
                         showToast('已删除「' + item._name + '」', 'info');
                         listStorageFiles();
                     })
-                    .catch(function (e) { showToast('删除失败：' + (e.message || e), 'error'); });
+                    .catch(function (e) {
+                        endLoading();
+                        endOp();
+                        showToast('删除失败：' + svcErrMsg(e), 'error');
+                    });
             }
         });
     };
@@ -407,36 +645,60 @@
     window.previewFile = function (index) {
         var item = (window.__items || [])[index];
         if (!item || item._folder) return;
+        if (!supabase) { showToast('存储服务不可用', 'error'); return; }
         var name = item._name;
         var path = childPath(name);
         document.getElementById('driveContainer').classList.add('preview-open');
         document.getElementById('previewTitle').textContent = name;
         var body = document.getElementById('previewBody');
-        body.innerHTML = '<div class="storage-progress">加载中…</div>';
+        body.innerHTML = '<div class="storage-progress">正在加载预览…</div>';
+
+        // 过期响应防护：快速切换预览目标时，只渲染最后一次请求
+        var token = ++previewToken;
+        startLoading();
+
+        function fail(e) {
+            endLoading();
+            if (token !== previewToken) return;
+            var msg = svcErrMsg(e);
+            if (/登录状态已过期/.test(msg)) handleSessionExpired();
+            body.innerHTML = '<div class="storage-empty">预览失败：' + escapeHtml(msg) + '</div>';
+        }
+
+        function finish(blob, render) {
+            endLoading();
+            if (token !== previewToken) return;   // 已切换到其他文件，丢弃
+            render(blob);
+        }
 
         if (isImage(name)) {
             // 与文本预览一致使用 download()，再转成 object URL，绕开 createSignedUrl 的 MIME/CORS 渲染问题
-            supabase.storage.from(STORAGE_BUCKET).download(path)
+            withTimeout(supabase.storage.from(STORAGE_BUCKET).download(path), 30000, '预览加载')
                 .then(function (res) {
                     if (res.error || !res.data) throw (res.error || new Error('无内容'));
-                    if (window.__previewUrl) URL.revokeObjectURL(window.__previewUrl);
-                    window.__previewUrl = URL.createObjectURL(res.data);
-                    body.innerHTML = '<div class="preview-img-wrap"><img class="preview-img" src="' + window.__previewUrl + '" alt="' + escapeHtml(name) + '"></div>';
+                    finish(res.data, function (blob) {
+                        if (window.__previewUrl) URL.revokeObjectURL(window.__previewUrl);
+                        window.__previewUrl = URL.createObjectURL(blob);
+                        body.innerHTML = '<div class="preview-img-wrap"><img class="preview-img" src="' + window.__previewUrl + '" alt="' + escapeHtml(name) + '"></div>';
+                    });
                 })
-                .catch(function (e) { body.innerHTML = '<div class="storage-empty">预览失败：' + escapeHtml(e.message || e) + '</div>'; });
+                .catch(fail);
         } else if (isText(name)) {
-            supabase.storage.from(STORAGE_BUCKET).download(path)
+            withTimeout(supabase.storage.from(STORAGE_BUCKET).download(path), 30000, '预览加载')
                 .then(function (res) {
                     if (res.error || !res.data) throw (res.error || new Error('无内容'));
                     return res.data.text().then(function (text) {
-                        body.innerHTML = '<pre class="preview-text">' + escapeHtml(text) + '</pre>';
+                        finish(text, function (t) {
+                            body.innerHTML = '<pre class="preview-text">' + escapeHtml(t) + '</pre>';
+                        });
                     });
                 })
-                .catch(function (e) { body.innerHTML = '<div class="storage-empty">预览失败：' + escapeHtml(e.message || e) + '</div>'; });
+                .catch(fail);
         }
     };
 
     function closePreview() {
+        previewToken++;          // 使还在路上的预览响应作废
         if (window.__previewUrl) { URL.revokeObjectURL(window.__previewUrl); window.__previewUrl = null; }
         document.getElementById('driveContainer').classList.remove('preview-open');
         document.getElementById('previewBody').innerHTML = '';
@@ -445,7 +707,11 @@
 
     // ---------- 退出 ----------
     window.logout = function () {
-        supabase.auth.signOut().then(function () { window.location.href = 'index.html'; });
+        if (isBusy()) { showToast('正在处理操作，请稍候再退出', 'info'); return; }
+        if (!supabase) { window.location.href = 'index.html'; return; }
+        supabase.auth.signOut()
+            .catch(function () { /* 网络失败也照常返回主页 */ })
+            .then(function () { window.location.href = 'index.html'; });
     };
 
     // ---------- 绑定上传 ----------
@@ -479,13 +745,23 @@
         if (!isAdmin) return;
         document.getElementById('quotaModal').classList.add('active');
         var list = document.getElementById('quotaUserList');
-        list.innerHTML = '<div class="storage-progress">加载中…</div>';
-        supabase.rpc('get_quota_config').then(function (res) {
-            if (res.error) { list.innerHTML = '<div class="storage-empty">加载失败：' + escapeHtml(res.error.message || res.error) + '</div>'; return; }
-            var d = res.data;
-            document.getElementById('quotaDefaultInput').value = d.default_quota_bytes;
-            renderQuotaUsers(d.members || [], d.default_quota_bytes);
-        }).catch(function (e) { list.innerHTML = '<div class="storage-empty">加载失败：' + escapeHtml(e.message || e) + '</div>'; });
+        list.innerHTML = '<div class="storage-progress">正在加载…</div>';
+        startLoading();
+        withTimeout(supabase.rpc('get_quota_config'), 15000, '配额配置加载')
+            .then(function (res) {
+                endLoading();
+                if (res.error) {
+                    list.innerHTML = '<div class="storage-empty">加载失败：' + escapeHtml(svcErrMsg(res.error)) + '</div>';
+                    return;
+                }
+                var d = res.data || {};
+                document.getElementById('quotaDefaultInput').value = d.default_quota_bytes;
+                renderQuotaUsers(d.members || [], d.default_quota_bytes);
+            })
+            .catch(function (e) {
+                endLoading();
+                list.innerHTML = '<div class="storage-empty">加载失败：' + escapeHtml(svcErrMsg(e)) + '</div>';
+            });
     };
 
     function renderQuotaUsers(members, def) {
@@ -512,31 +788,40 @@
         list.innerHTML = html;
     }
 
+    // RPC 调用的统一封装：超时 + 加载条 + 错误提示
+    function rpc(name, params, okMsg, after) {
+        startLoading();
+        withTimeout(supabase.rpc(name, params), 15000, '操作')
+            .then(function (res) {
+                endLoading();
+                if (res.error) { showToast('操作失败：' + svcErrMsg(res.error), 'error'); return; }
+                showToast(okMsg, 'success');
+                if (after) after();
+            })
+            .catch(function (e) {
+                endLoading();
+                showToast('操作失败：' + svcErrMsg(e), 'error');
+            });
+    }
+
     window.saveDefaultQuota = function () {
+        if (!isAdmin) return;
         var bytes = parseInt(document.getElementById('quotaDefaultInput').value, 10);
-        if (!(bytes >= 0)) { showToast('请输入有效的字节数', 'error'); return; }
-        supabase.rpc('set_default_quota', { p_bytes: bytes }).then(function (res) {
-            if (res.error) { showToast('保存失败：' + (res.error.message || res.error), 'error'); return; }
-            showToast('默认配额已更新');
-            loadStorageUsage();
-        });
+        if (!(bytes >= 0)) { showToast('请输入有效的字节数（非负整数）', 'error'); return; }
+        rpc('set_default_quota', { p_bytes: bytes }, '默认配额已更新', loadStorageUsage);
     };
 
     window.saveUserQuota = function (email, btn) {
+        if (!isAdmin) return;
         var input = btn.closest('.quota-user-row').querySelector('.quota-user-input');
         var bytes = parseInt(input.value, 10);
-        if (!(bytes >= 0)) { showToast('请输入有效的字节数', 'error'); return; }
-        supabase.rpc('set_user_quota', { p_email: email, p_bytes: bytes }).then(function (res) {
-            if (res.error) { showToast('保存失败：' + (res.error.message || res.error), 'error'); return; }
-            showToast('已为该用户设置配额');
-            loadStorageUsage();
-        });
+        if (!(bytes >= 0)) { showToast('请输入有效的字节数（非负整数）', 'error'); return; }
+        rpc('set_user_quota', { p_email: email, p_bytes: bytes }, '已为该用户设置配额', loadStorageUsage);
     };
 
     window.clearUserQuota = function (email) {
-        supabase.rpc('clear_user_quota', { p_email: email }).then(function (res) {
-            if (res.error) { showToast('操作失败：' + (res.error.message || res.error), 'error'); return; }
-            showToast('已恢复默认配额');
+        if (!isAdmin) return;
+        rpc('clear_user_quota', { p_email: email }, '已恢复默认配额', function () {
             openQuotaManager();
             loadStorageUsage();
         });
@@ -551,30 +836,53 @@
     function init() {
         initTheme();
         bindStorage();
+        startLoading();   // 鉴权+首次列表加载期间显示进度条
         if (!supabase) {
-            document.getElementById('storageList').innerHTML = '<div class="storage-empty">存储服务不可用</div>';
+            endLoading();
+            document.getElementById('storageList').innerHTML = '<div class="storage-empty">存储服务不可用，请刷新页面重试</div>';
             return;
         }
-        supabase.auth.getUser().then(function (res) {
-            if (!res || !res.data || !res.data.user) { window.location.href = 'index.html'; return; }
-            var user = res.data.user;
-            var name = (user.user_metadata && user.user_metadata.username) ? user.user_metadata.username : user.email;
-            currentUser = { id: user.id, email: user.email, name: name };
-            var badge = document.getElementById('userBadge');
-            badge.textContent = name;
-            badge.className = 'admin-tag role-user';
-            badge.style.display = 'inline-block';
-            listStorageFiles();
-            loadStorageUsage();
-            // 管理员判定：邮箱在 admins 表内
-            supabase.from('admins').select('email').eq('email', currentUser.email).maybeSingle()
-                .then(function (r) {
-                    isAdmin = !!(r && !r.error && r.data);
-                    var btn = document.getElementById('quotaAdminBtn');
-                    if (btn) btn.style.display = isAdmin ? 'inline-block' : 'none';
-                })
-                .catch(function () { isAdmin = false; });
-        });
+        withTimeout(supabase.auth.getUser(), 15000, '登录状态获取')
+            .then(function (res) {
+                if (!res || !res.data || !res.data.user) {
+                    endLoading();
+                    window.location.href = 'index.html';
+                    return;
+                }
+                var user = res.data.user;
+                var name = (user.user_metadata && user.user_metadata.username) ? user.user_metadata.username : user.email;
+                currentUser = { id: user.id, email: user.email, name: name };
+                var badge = document.getElementById('userBadge');
+                badge.textContent = name;
+                badge.className = 'admin-tag role-user';
+                badge.style.display = 'inline-block';
+                listStorageFiles();          // 各自管理自己的加载计数
+                loadStorageUsage();
+                // 管理员判定：邮箱在 admins 表内（失败按普通用户处理，不阻断）
+                withTimeout(
+                    supabase.from('admins').select('email').eq('email', currentUser.email).maybeSingle(),
+                    10000, '权限查询'
+                )
+                    .then(function (r) {
+                        isAdmin = !!(r && !r.error && r.data);
+                    })
+                    .catch(function (e) {
+                        console.warn('管理员身份查询失败，按普通用户处理:', e);
+                        isAdmin = false;
+                    })
+                    .then(function () {
+                        endLoading();
+                        var btn = document.getElementById('quotaAdminBtn');
+                        if (btn) btn.style.display = isAdmin ? 'inline-block' : 'none';
+                    });
+            })
+            .catch(function (e) {
+                // 网络异常导致拿不到用户信息：明确提示而非跳转（避免误伤已登录用户）
+                endLoading();
+                document.getElementById('storageList').innerHTML =
+                    '<div class="storage-empty">加载失败：' + escapeHtml(svcErrMsg(e)) + '<br>' +
+                    '<button class="btn btn-secondary" style="margin-top:12px" onclick="window.location.reload()">重新加载</button></div>';
+            });
     }
 
     init();

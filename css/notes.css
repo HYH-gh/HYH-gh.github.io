@@ -1,0 +1,311 @@
+/* ============================================================
+   云便签页面样式
+   ============================================================ */
+
+.notes-main { max-width: 900px; margin: 0 auto; }
+
+/* ---------- 双栏布局（左列表 / 右面板，类似云盘） ---------- */
+.notes-container { max-width: 1200px; }
+
+/* 撑满视口剩余高度，让编辑/预览尽量高 */
+@media (min-width: 901px) {
+    .notes-container {
+        min-height: calc(100vh - 84px);   /* 视口高度减顶栏，值可按顶栏实际高度微调 */
+    }
+}
+
+.notes-container .drive-list-col { flex: 0 0 40%; min-width: 0; }
+.notes-container .preview-panel {
+    flex: 1 1 60%;
+    min-width: 0;
+    max-height: none;      /* 覆盖云盘的 100vh-140px 上限，面板撑满容器 */
+    position: static;      /* 覆盖云盘的 sticky 定位 */
+}
+.notes-container.preview-open .drive-list-col { flex: 0 0 40%; }
+
+.notes-container .preview-panel { display: none; }
+.notes-container.preview-open .preview-panel { display: flex; }
+
+.notes-panel { flex-direction: column; }
+.notes-panel-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--text-tertiary);
+    font-size: 14px;
+}
+.notes-panel-empty-icon { font-size: 32px; opacity: 0.5; }
+.notes-panel-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 0;
+}
+.notes-panel-head-actions { display: flex; gap: 8px; }
+
+.notes-edit-form {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 16px 16px;
+    min-height: 0;
+}
+.notes-edit-title {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--accent-border);
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-weight: 600;
+    background: var(--surface, transparent);
+    color: var(--text-primary);
+    outline: none;
+    flex: 0 0 auto;
+}
+.notes-edit-title:focus { border-color: var(--accent); }
+.notes-edit-content {
+    flex: 5 1 0;              /* 编辑区：预览区 ≈ 5:2 */
+    min-height: 260px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--accent-border);
+    border-radius: var(--radius);
+    font-size: 13px;
+    line-height: 1.6;
+    font-family: Consolas, Monaco, monospace;
+    background: var(--surface, transparent);
+    color: var(--text-primary);
+    outline: none;
+    resize: none;             /* 由 flex 分配高度，禁用手动拖拽调整避免打破布局 */
+    overflow-y: auto;
+}
+.notes-edit-content:focus { border-color: var(--accent); }
+.notes-edit-preview-label {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+    flex: 0 0 auto;
+}
+.notes-edit-preview {
+    flex: 2 1 0;              /* 预览区弹性伸缩 */
+    min-height: 110px;
+    max-height: none;         /* 取消固定上限，跟随可用空间 */
+    overflow-y: auto;
+}
+.notes-edit-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
+@media (max-width: 900px) {
+    .notes-container.preview-open .drive-list-col { display: none; }
+    .notes-container { min-height: auto; }
+    .notes-edit-content { min-height: 180px; }
+}
+
+.notes-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--surface, rgba(0,0,0,0.04));
+    border-radius: var(--radius);
+    padding: 4px;
+    width: fit-content;
+    margin: 0 auto 24px;
+}
+.notes-tab {
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 8px 20px;
+    border-radius: calc(var(--radius) - 4px);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.notes-tab:hover { color: var(--text-primary); }
+.notes-tab.active {
+    background: var(--accent);
+    color: #fff;
+}
+
+.notes-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+.notes-hint {
+    font-size: 12.5px;
+    color: var(--text-tertiary);
+    flex: 1;
+    min-width: 200px;
+}
+.notes-search {
+    flex: 1;
+    min-width: 220px;
+    padding: 9px 12px;
+    border: 1px solid var(--accent-border);
+    border-radius: var(--radius);
+    font-size: 13px;
+    background: var(--surface, transparent);
+    color: var(--text-primary);
+    outline: none;
+}
+.notes-search:focus { border-color: var(--accent); }
+.form-select {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--accent-border);
+    border-radius: var(--radius);
+    font-size: 13px;
+    background: var(--surface, transparent);
+    color: var(--text-primary);
+}
+
+.notes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.note-item {
+    border: 1px solid var(--accent-border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    cursor: pointer;
+    background: var(--surface, transparent);
+}
+.note-item:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-sm, 0 2px 8px rgba(0,0,0,0.06));
+}
+.note-item-info { flex: 1; min-width: 0; }
+.note-item-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.note-item-preview {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    margin-top: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.note-item-meta {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.note-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+.note-name-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-family: monospace;
+    background: var(--accent-bg);
+    color: var(--accent);
+    padding: 2px 8px;
+    border-radius: 10px;
+    max-width: 240px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+}
+.note-expired-badge {
+    display: inline-block;
+    font-size: 11px;
+    background: var(--danger-bg);
+    color: var(--danger);
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+/* Markdown 预览/查看 */
+.note-preview {
+    border: 1px solid var(--accent-border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    font-size: 13.5px;
+    line-height: 1.65;
+    color: var(--text-primary);
+    background: var(--surface, transparent);
+    max-height: 320px;
+    overflow-y: auto;
+    word-break: break-word;
+}
+.note-view-body { max-height: 55vh; }
+.note-preview h1, .note-preview h2, .note-preview h3,
+.note-preview h4, .note-preview h5, .note-preview h6 {
+    margin: 0.6em 0 0.35em;
+    line-height: 1.35;
+}
+.note-preview h1 { font-size: 1.35em; }
+.note-preview h2 { font-size: 1.2em; }
+.note-preview h3 { font-size: 1.08em; }
+.note-preview p { margin: 0.4em 0; }
+.note-preview ul, .note-preview ol { margin: 0.4em 0; padding-left: 1.6em; }
+.note-preview li { margin: 0.15em 0; }
+.note-preview code {
+    font-family: Consolas, Monaco, monospace;
+    font-size: 0.9em;
+    background: var(--accent-bg);
+    color: var(--accent);
+    padding: 1px 5px;
+    border-radius: 4px;
+}
+.note-preview pre {
+    background: var(--accent-bg);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    overflow-x: auto;
+    margin: 0.5em 0;
+}
+.note-preview pre code { background: transparent; padding: 0; color: inherit; }
+.note-preview blockquote {
+    border-left: 3px solid var(--accent);
+    margin: 0.5em 0;
+    padding: 2px 0 2px 12px;
+    color: var(--text-secondary);
+}
+.note-preview a { color: var(--accent); }
+.note-preview hr {
+    border: none;
+    border-top: 1px solid var(--accent-border);
+    margin: 0.8em 0;
+}
+.note-preview table { border-collapse: collapse; margin: 0.5em 0; }
+.note-preview th, .note-preview td {
+    border: 1px solid var(--accent-border);
+    padding: 4px 10px;
+    font-size: 0.95em;
+}
+.notes-view-meta {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}

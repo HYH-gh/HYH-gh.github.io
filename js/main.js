@@ -12,7 +12,54 @@
     var navItems = [];
     var logItems = [];
     var currentPathType = 'path';
+    var currentCategory = 'internal';
     var LOG_STORAGE = 'hub_log_items';
+
+    var CATEGORIES = ['internal', 'external', 'special'];
+    var CATEGORY_NAMES = { internal: '站内工具', external: '外部工具', special: '特殊工具' };
+
+    // ============================================================
+    // 1b. Auth 流转状态：防止重复提交 / 并发登录 / 超时悬挂
+    // authBusy: null | 'login' | 'register' | 'profile'
+    // ============================================================
+    var authBusy = null;
+
+    function setAuthBusy(mode) {
+        authBusy = mode || null;
+        var btn = document.getElementById('loginActionBtn');
+        if (btn) {
+            btn.disabled = !!authBusy;
+            btn.textContent = authBusy === 'login' ? '登录中…'
+                : authBusy === 'register' ? '注册中…'
+                : '登录';
+        }
+    }
+    function isAuthBusy() { return authBusy !== null; }
+
+    // 把 Supabase 的英文错误翻译成用户可读的中文提示
+    function authErrMsg(err) {
+        if (!err) return '操作失败，请稍后再试';
+        var msg = (typeof err === 'string') ? err : (err.message || String(err));
+        if (/Failed to fetch|NetworkError|network|Load failed/i.test(msg))
+            return '网络连接失败，请检查网络后重试';
+        if (/timeout|aborted/i.test(msg))
+            return '请求超时，请检查网络后重试';
+        if (/Invalid login credentials/i.test(msg))
+            return '邮箱或密码不正确';
+        if (/Email not confirmed/i.test(msg))
+            return '该邮箱尚未完成验证，请先查收验证邮件；如未收到可在下方重新发送';
+        if (/already registered|already exists/i.test(msg))
+            return '该邮箱已注册，请直接登录';
+        if (/rate limit|too many/i.test(msg))
+            return '操作过于频繁，请稍后再试';
+        if (/Password should be at least/i.test(msg))
+            return '密码至少需要 6 位';
+        if (/unable to validate email|invalid format/i.test(msg))
+            return '邮箱格式不正确';
+        if (/same as the old password/i.test(msg))
+            return '新密码不能与当前密码相同';
+        return msg;
+    }
 
     // ============================================================
     // 2b. Supabase 配置（连接动态数据库）
@@ -45,23 +92,87 @@
     };
 
     // ============================================================
+    // 1c. 全局加载指示：顶部进度条 + 引用计数（并发请求叠加）
+    // ============================================================
+    var loadingCount = 0;
+    var loadingMinTimer = null;
+
+    function ensureLoadingBar() {
+        var bar = document.getElementById('globalLoadingBar');
+        if (bar) return bar;
+        bar = document.createElement('div');
+        bar.id = 'globalLoadingBar';
+        bar.className = 'global-loading-bar';
+        document.body.appendChild(bar);
+        return bar;
+    }
+
+    function startLoading() {
+        loadingCount++;
+        var bar = ensureLoadingBar();
+        bar.classList.add('active');
+    }
+
+    function endLoading() {
+        loadingCount = Math.max(0, loadingCount - 1);
+        if (loadingCount === 0) {
+            var bar = document.getElementById('globalLoadingBar');
+            if (bar) bar.classList.remove('active');
+            if (loadingMinTimer) { clearTimeout(loadingMinTimer); loadingMinTimer = null; }
+        }
+    }
+
+    // 给任意 Promise 套上加载指示：开始时显示、结束时隐藏
+    function withLoading(promise) {
+        startLoading();
+        return promise.then(
+            function (v) { endLoading(); return v; },
+            function (e) { endLoading(); throw e; }
+        );
+    }
+
+    // ============================================================
     // 3. Data — 从 Supabase 加载导航（日志为浏览器本地缓存）
     // ============================================================
+    var GRID_LOADING_HTML = '<div class="nav-loading">' +
+        '<div class="nav-loading-spinner"></div>' +
+        '<span>正在加载导航…</span>' +
+        '</div>';
+
+    function renderGridLoading() {
+        // 三个分类区都显示加载占位
+        CATEGORIES.forEach(function (cat) {
+            var grid = document.getElementById('navGrid' + cat.charAt(0).toUpperCase() + cat.slice(1));
+            if (grid) grid.innerHTML = GRID_LOADING_HTML;
+        });
+    }
+
     function loadNavItems() {
-        if (!supabase) { renderGrid(); return; }
+        renderGridLoading();
+        if (!supabase) { navItems = []; renderGrid(); return; }
+        startLoading();
         supabase.from(NAV_TABLE)
             .select('*')
             .order('sort', { ascending: true })
             .then(function (res) {
+                endLoading();
                 if (res.error) {
                     console.warn('Supabase 读取失败:', res.error);
+                    navItems = [];
                     renderGrid();
+                    showToast('导航数据加载失败：' + authErrMsg(res.error), 'error');
                     return;
                 }
                 navItems = Array.isArray(res.data) ? res.data : [];
                 renderGrid();
             })
-            .catch(function (e) { console.warn('Supabase 请求异常:', e); renderGrid(); });
+            .catch(function (e) {
+                endLoading();
+                console.warn('Supabase 请求异常:', e);
+                navItems = [];
+                renderGrid();
+                showToast('导航数据加载失败：' + authErrMsg(e), 'error');
+            });
     }
 
     function loadLogItems() {
@@ -107,52 +218,153 @@
     }
 
     // ============================================================
-    // 8. Render grid
+    // 8. Render grid — 按分类分区渲染
     // ============================================================
+    // 分类归一化：数据库无 category 的旧数据按 type 推断
+    function itemCategory(item) {
+        if (CATEGORIES.indexOf(item.category) !== -1) return item.category;
+        return item.type === 'url' ? 'external' : 'internal';
+    }
+
+    // 特殊工具的固定卡片（云盘 + 云便签）
+    function driveCardHtml() {
+        var loggedIn = !!currentUser;
+        var desc = loggedIn ? '进入我的云盘' : '登录后可用';
+        return '<div class="card card-special" onclick="window.NavHub.openDrive()">' +
+            '<div class="card-icon">' + driveIconSVG() + '</div>' +
+            '<div class="card-body">' +
+                '<div style="display:flex;align-items:center;gap:8px">' +
+                    '<div class="card-title">云盘</div>' +
+                    '<span class="card-badge card-badge-path">SPECIAL</span>' +
+                '</div>' +
+                '<div class="card-path">' + desc + '</div>' +
+            '</div>' +
+            '<div class="card-arrow">' + driveIconSVG() + '</div>' +
+        '</div>';
+    }
+
+    function notesCardHtml() {
+        return '<div class="card card-special" onclick="window.NavHub.openNotes()">' +
+            '<div class="card-icon">' + notesIconSVG() + '</div>' +
+            '<div class="card-body">' +
+                '<div style="display:flex;align-items:center;gap:8px">' +
+                    '<div class="card-title">云便签</div>' +
+                    '<span class="card-badge card-badge-path">SPECIAL</span>' +
+                '</div>' +
+                '<div class="card-path">' + (currentUser ? '私密便签 · 公开便签' : '私密需登录 · 公开随便看') + '</div>' +
+            '</div>' +
+            '<div class="card-arrow">' + notesIconSVG() + '</div>' +
+        '</div>';
+    }
+
+    function driveIconSVG() {
+        return '<svg viewBox="0 0 24 24" width="22" height="22">' +
+            '<rect x="2" y="13" width="20" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>' +
+            '<circle cx="6.5" cy="17" r="1" fill="currentColor"/>' +
+            '<path d="M6 13l2.5-6h7L18 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>' +
+        '</svg>';
+    }
+
+    function notesIconSVG() {
+        return '<svg viewBox="0 0 24 24" width="22" height="22">' +
+            '<path d="M4 4h16v13a3 3 0 0 1-3 3H4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>' +
+            '<path d="M16 20v-4h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>' +
+            '<line x1="8" y1="9" x2="16" y2="9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>' +
+            '<line x1="8" y1="13" x2="13" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>' +
+        '</svg>';
+    }
+
+    function cardHtml(item, index) {
+        var isUrl = item.type === 'url';
+        var iconHtml = isUrl ? urlIconSVG() : (item.icon || cardIconSVG());
+        var badgeHtml = isUrl
+            ? '<span class="card-badge card-badge-url">URL</span>'
+            : '<span class="card-badge card-badge-path">PATH</span>';
+
+        var html = '<div class="card" onclick="window.NavHub.navigate(\'' + escapeAttr(item.path) + '\', ' + isUrl + ')">';
+        if (isAdmin) {
+            html += '<div class="card-actions">' +
+                '<button class="mini-btn mini-btn-edit" onclick="event.stopPropagation();window.NavHub.openEdit(' + index + ')">编辑</button>' +
+                '<button class="mini-btn mini-btn-del" onclick="event.stopPropagation();window.NavHub.deleteItem(' + index + ')">删除</button>' +
+            '</div>';
+        }
+        html += '<div class="card-icon">' + iconHtml + '</div>';
+        html += '<div class="card-body">' +
+            '<div style="display:flex;align-items:center;gap:8px">' +
+                '<div class="card-title">' + escHtml(item.name) + '</div>' +
+                badgeHtml +
+            '</div>' +
+            '<div class="card-path">' + escHtml(item.path) + '</div>' +
+        '</div>';
+        html += '<div class="card-arrow">' +
+            (isUrl
+                ? '<svg viewBox="0 0 24 24" width="18" height="18"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="15" y1="3" x2="21" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="21" y1="3" x2="21" y2="9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="10" y1="14" x2="21" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+                : '<svg viewBox="0 0 24 24" width="18" height="18"><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="5" x2="19" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="19" x2="19" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+            ) +
+        '</div>';
+        html += '</div>';
+        return html;
+    }
+
+    function emptyGridHtml(msg) {
+        return '<div class="nav-empty">' +
+            '<svg viewBox="0 0 24 24" width="36" height="36" style="color:var(--text-tertiary)"><rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>' +
+            '<span>' + escHtml(msg) + '</span>' +
+        '</div>';
+    }
+
     function renderGrid() {
-        var grid = document.getElementById('navGrid');
-        if (!navItems.length) {
-            grid.innerHTML = '<div class="nav-empty">' +
-                '<svg viewBox="0 0 24 24" width="36" height="36" style="color:var(--text-tertiary)"><rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>' +
-                '<span>暂无导航项，管理员登录后可添加</span>' +
-                '</div>';
+        var loading = document.getElementById('navGridLoading');
+        var grouped = { internal: [], external: [], special: [] };
+        navItems.forEach(function (item) {
+            grouped[itemCategory(item)].push(item);
+        });
+        // 每个分类内部按 sort 升序
+        CATEGORIES.forEach(function (cat) {
+            grouped[cat].sort(function (a, b) { return (a.sort || 0) - (b.sort || 0); });
+        });
+
+        // 站内工具
+        var gInt = document.getElementById('navGridInternal');
+        gInt.innerHTML = grouped.internal.length
+            ? grouped.internal.map(cardHtml).join('')
+            : emptyGridHtml('暂无站内工具，管理员登录后可添加');
+
+        // 外部工具
+        var gExt = document.getElementById('navGridExternal');
+        gExt.innerHTML = grouped.external.length
+            ? grouped.external.map(cardHtml).join('')
+            : emptyGridHtml('暂无外部工具，管理员登录后可添加');
+
+        // 特殊工具：云盘 + 云便签固定入口（不再依赖数据库记录）
+        document.getElementById('navGridSpecial').innerHTML = driveCardHtml() + notesCardHtml();
+
+        // 首次渲染完成后移除加载占位（一次性）
+        if (loading && !loading._removed) {
+            loading.style.display = 'none';
+            loading._removed = true;
+        }
+    }
+
+    // 游客点击云盘卡片 → 提示登录；已登录 → 跳转云盘
+    window.openDrive = function () {
+        if (!currentUser) {
+            showToast('云盘需要登录后使用，请先登录或注册', 'info');
+            switchLoginMode('login');
+            openModal('loginModal');
+            setTimeout(function () {
+                var el = document.getElementById('loginUser');
+                if (el) el.focus();
+            }, 150);
             return;
         }
+        window.location.href = 'drive.html';
+    };
 
-        var html = '';
-        for (var i = 0; i < navItems.length; i++) {
-            var item = navItems[i];
-            var isUrl = item.type === 'url';
-            var iconHtml = isUrl ? urlIconSVG() : (item.icon || cardIconSVG());
-            var badgeHtml = isUrl
-                ? '<span class="card-badge card-badge-url">URL</span>'
-                : '<span class="card-badge card-badge-path">PATH</span>';
-
-            html += '<div class="card" onclick="window.NavHub.navigate(\'' + escapeAttr(item.path) + '\', ' + isUrl + ')">';
-            if (isAdmin) {
-                html += '<div class="card-actions">' +
-                    '<button class="mini-btn mini-btn-edit" onclick="event.stopPropagation();window.NavHub.openEdit(' + i + ')">编辑</button>' +
-                    '<button class="mini-btn mini-btn-del" onclick="event.stopPropagation();window.NavHub.deleteItem(' + i + ')">删除</button>' +
-                '</div>';
-            }
-            html += '<div class="card-icon">' + iconHtml + '</div>';
-            html += '<div class="card-body">' +
-                '<div style="display:flex;align-items:center;gap:8px">' +
-                    '<div class="card-title">' + escHtml(item.name) + '</div>' +
-                    badgeHtml +
-                '</div>' +
-                '<div class="card-path">' + escHtml(item.path) + '</div>' +
-            '</div>';
-            html += '<div class="card-arrow">' +
-                (isUrl
-                    ? '<svg viewBox="0 0 24 24" width="18" height="18"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="15" y1="3" x2="21" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="21" y1="3" x2="21" y2="9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="10" y1="14" x2="21" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
-                    : '<svg viewBox="0 0 24 24" width="18" height="18"><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="5" x2="19" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="19" x2="19" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
-                ) +
-            '</div>';
-            html += '</div>';
-        }
-        grid.innerHTML = html;
-    }
+    // 云便签：游客可直接使用公开便签，页面内自行引导登录
+    window.openNotes = function () {
+        window.location.href = 'notes.html';
+    };
 
     function escHtml(s) {
         var d = document.createElement('div');
@@ -200,6 +412,86 @@
     };
 
     // ============================================================
+    // 11b. 登录弹窗内联提示（比 toast 更持久的就地反馈）
+    // ============================================================
+    function showAuthMsg(msg, type) {
+        var el = document.getElementById('loginMsg');
+        if (!el) { showToast(msg, type); return; }
+        el.textContent = msg;
+        el.className = 'auth-inline-msg auth-msg-' + (type || 'info');
+        el.style.display = 'block';
+    }
+    function hideAuthMsg() {
+        var el = document.getElementById('loginMsg');
+        if (el) { el.style.display = 'none'; el.textContent = ''; el.className = 'auth-inline-msg'; }
+    }
+    window.clearAuthMsg = hideAuthMsg;   // 输入时清掉旧提示（index.html 已引用）
+
+    function getLoginEmail() { return (document.getElementById('loginUser').value || '').trim(); }
+    function getLoginPass() { return document.getElementById('loginPass').value || ''; }
+
+    // ============================================================
+    // 11c. 验证邮件重发（60s 冷却）
+    // ============================================================
+    var resendCooldown = 0;
+    var resendTimer = null;
+    function startResendCooldown() {
+        resendCooldown = 60;
+        updateResendLink();
+        if (resendTimer) clearInterval(resendTimer);
+        resendTimer = setInterval(function () {
+            resendCooldown--;
+            if (resendCooldown <= 0) { clearInterval(resendTimer); resendTimer = null; resendCooldown = 0; }
+            updateResendLink();
+        }, 1000);
+    }
+    function updateResendLink() {
+        var link = document.getElementById('resendLink');
+        if (!link) return;
+        if (resendCooldown > 0) {
+            link.textContent = '重新发送验证邮件（' + resendCooldown + 's）';
+            link.style.pointerEvents = 'none';
+            link.style.opacity = '0.5';
+        } else {
+            link.textContent = '重新发送验证邮件';
+            link.style.pointerEvents = '';
+            link.style.opacity = '';
+        }
+    }
+    window.resendConfirmation = function () {
+        if (resendCooldown > 0) return;
+        if (!supabase) { showAuthMsg('Supabase 未连接', 'error'); return; }
+        var email = getLoginEmail();
+        if (!email) { showAuthMsg('请先在上方输入注册时使用的邮箱', 'error'); return; }
+        supabase.auth.resend({ type: 'signup', email: email })
+            .then(function (res) {
+                if (res.error) { showAuthMsg('发送失败：' + authErrMsg(res.error), 'error'); return; }
+                startResendCooldown();
+                showAuthMsg('验证邮件已发送，请查收（注意垃圾邮件箱）', 'success');
+            })
+            .catch(function (e) { showAuthMsg('发送失败：' + authErrMsg(e), 'error'); });
+    };
+
+    // ============================================================
+    // 11d. 带超时的请求封装：避免网络异常时按钮永久卡在“登录中…”
+    // ============================================================
+    function withTimeout(promise, ms, label) {
+        return new Promise(function (resolve, reject) {
+            var done = false;
+            var t = setTimeout(function () {
+                if (done) return;
+                done = true;
+                reject(new Error(label + '超时，请检查网络后重试'));
+            }, ms || 20000);
+            promise.then(function (v) {
+                if (done) return; done = true; clearTimeout(t); resolve(v);
+            }, function (e) {
+                if (done) return; done = true; clearTimeout(t); reject(e);
+            });
+        });
+    }
+
+    // ============================================================
     // 11. Auth: Login / Register / Logout
     // ============================================================
     function openAdminPanel() {
@@ -231,7 +523,11 @@
     };
 
     function switchLoginMode(mode) {
+        if (isAuthBusy()) { showToast('正在处理请求，请稍候…', 'info'); return; }
         loginMode = mode;
+        hideAuthMsg();
+        var resend = document.getElementById('resendLink');
+        if (resend) resend.style.display = 'none';
         var title = document.getElementById('loginTitle');
         var nameGroup = document.getElementById('loginNameGroup');
         var pass2Group = document.getElementById('loginPass2Group');
@@ -260,42 +556,105 @@
     };
 
     function doLogin() {
-        var email = document.getElementById('loginUser').value.trim();
-        var pass = document.getElementById('loginPass').value;
-        if (!email || !pass) { showToast('请输入邮箱和密码', 'error'); return; }
-        if (!supabase) { showToast('Supabase 未连接', 'error'); return; }
-        supabase.auth.signInWithPassword({ email: email, password: pass })
+        if (isAuthBusy()) { showAuthMsg('正在处理上一次请求，请稍候…', 'info'); return; }
+        var email = getLoginEmail();
+        var pass = getLoginPass();
+        if (!email || !pass) { showAuthMsg('请输入邮箱和密码', 'error'); return; }
+        if (!supabase) { showAuthMsg('Supabase 未连接，请刷新页面重试', 'error'); return; }
+
+        setAuthBusy('login');
+        hideAuthMsg();
+
+        withTimeout(supabase.auth.signInWithPassword({ email: email, password: pass }), 20000, '登录请求')
             .then(function (res) {
-                if (res.error) { showToast('登录失败：' + res.error.message, 'error'); return; }
-                return resolveUser(res.data.user);
+                if (res.error) {
+                    var m = authErrMsg(res.error);
+                    // 未验证邮箱 → 展示重发入口
+                    if (/Email not confirmed/i.test(res.error.message || '')) {
+                        showResendLink();
+                    }
+                    showAuthMsg(m, 'error');
+                    setAuthBusy(null);
+                    return;
+                }
+                return resolveUser(res.data.user).then(function () {
+                    setAuthBusy(null);
+                    finishLogin();
+                });
             })
-            .then(function () { finishLogin(); })
-            .catch(function (e) { showToast('登录异常：' + (e.message || e), 'error'); });
+            .catch(function (e) {
+                setAuthBusy(null);
+                showAuthMsg(authErrMsg(e), 'error');
+            });
+    }
+
+    function showResendLink() {
+        var link = document.getElementById('resendLink');
+        if (link) { updateResendLink(); link.style.display = 'block'; }
     }
 
     function doRegister() {
-        var email = document.getElementById('loginUser').value.trim();
-        var pass = document.getElementById('loginPass').value;
+        if (isAuthBusy()) { showAuthMsg('正在处理上一次请求，请稍候…', 'info'); return; }
+        var email = getLoginEmail();
+        var pass = getLoginPass();
         var confirm = document.getElementById('loginPass2').value;
         var username = (document.getElementById('loginName').value || '').trim();
-        if (!email || !pass) { showToast('请输入邮箱和密码', 'error'); return; }
-        if (pass.length < 6) { showToast('密码至少需 6 位', 'error'); return; }
-        if (pass !== confirm) { showToast('两次密码不一致', 'error'); return; }
-        if (!supabase) { showToast('Supabase 未连接', 'error'); return; }
-        supabase.auth.signUp({
+        if (!email || !pass) { showAuthMsg('请输入邮箱和密码', 'error'); return; }
+        if (pass.length < 6) { showAuthMsg('密码至少需 6 位', 'error'); return; }
+        if (pass !== confirm) { showAuthMsg('两次密码不一致', 'error'); return; }
+        if (!supabase) { showAuthMsg('Supabase 未连接，请刷新页面重试', 'error'); return; }
+
+        setAuthBusy('register');
+        hideAuthMsg();
+
+        withTimeout(supabase.auth.signUp({
                 email: email,
                 password: pass,
                 options: { data: { username: username } }
-            })
+            }), 20000, '注册请求')
             .then(function (res) {
-                if (res.error) { showToast('注册失败：' + res.error.message, 'error'); return; }
-                if (res.data.session) {
-                    return resolveUser(res.data.session.user).then(function () { finishLogin(); });
+                if (res.error) {
+                    // “已注册”分两种情况：未验证（引导重发验证邮件）或已验证（引导直接登录）
+                    var raw = res.error.message || '';
+                    if (/already registered|already exists/i.test(raw)) {
+                        // 尝试用所填密码验证该账号状态：能登录说明已验证，直接帮其登录
+                        return supabase.auth.signInWithPassword({ email: email, password: pass })
+                            .then(function (lres) {
+                                if (!lres.error) {
+                                    return resolveUser(lres.data.user).then(function () {
+                                        setAuthBusy(null);
+                                        showAuthMsg('该邮箱已注册，已直接为你登录', 'success');
+                                        setTimeout(function () { finishLogin(); }, 600);
+                                    });
+                                }
+                                if (/Email not confirmed/i.test(lres.error.message || '')) {
+                                    showResendLink();
+                                    showAuthMsg('该邮箱已注册但尚未验证，请查收验证邮件，或在下方重新发送', 'error');
+                                } else {
+                                    showAuthMsg('该邮箱已注册，请直接登录', 'error');
+                                }
+                                setAuthBusy(null);
+                            });
+                    }
+                    showAuthMsg(authErrMsg(res.error), 'error');
+                    setAuthBusy(null);
+                    return;
                 }
-                closeModal('loginModal');
-                showToast('注册成功，请到邮箱确认后登录', 'success');
+                if (res.data.session) {
+                    return resolveUser(res.data.session.user).then(function () {
+                        setAuthBusy(null);
+                        finishLogin();
+                    });
+                }
+                // 注册成功但需要邮箱验证：不关闭弹窗，明确告知后续步骤
+                setAuthBusy(null);
+                showResendLink();
+                showAuthMsg('注册成功！验证邮件已发送到 ' + email + '，请查收并点击验证链接后登录（注意垃圾邮件箱）', 'success');
             })
-            .catch(function (e) { showToast('注册异常：' + (e.message || e), 'error'); });
+            .catch(function (e) {
+                setAuthBusy(null);
+                showAuthMsg(authErrMsg(e), 'error');
+            });
     }
 
     function resolveUser(user) {
@@ -303,17 +662,23 @@
         var email = user.email;
         var name = (user.user_metadata && user.user_metadata.username) ? user.user_metadata.username : email;
         currentUser = { id: user.id, email: email, name: name, role: 'user' };
-        if (!supabase) { isAdmin = false; return Promise.resolve(); }
-        return supabase.from(ADMINS_TABLE)
-            .select('email')
-            .eq('email', email)
-            .maybeSingle()
+        isAdmin = false;   // 先按普通用户处理，查询成功后再提权
+        if (!supabase) return Promise.resolve();
+        return withTimeout(
+            supabase.from(ADMINS_TABLE).select('email').eq('email', email).maybeSingle(),
+            10000, '权限查询'
+        )
             .then(function (res) {
-                var admin = res && !res.error && res.data;
-                currentUser.role = admin ? 'admin' : 'user';
-                isAdmin = !!admin;
+                if (res && !res.error && res.data) {
+                    currentUser.role = 'admin';
+                    isAdmin = true;
+                }
             })
-            .catch(function () { isAdmin = false; });
+            .catch(function (e) {
+                // 查询失败不阻断登录，按普通用户放行并提示
+                console.warn('管理员身份查询失败，按普通用户处理:', e);
+                showToast('身份校验暂时不可用，已按普通用户登录', 'info');
+            });
     }
 
     function finishLogin() {
@@ -321,6 +686,10 @@
         document.getElementById('loginPass').value = '';
         if (document.getElementById('loginPass2')) document.getElementById('loginPass2').value = '';
         if (document.getElementById('loginName')) document.getElementById('loginName').value = '';
+        setAuthBusy(null);
+        hideAuthMsg();
+        var resend = document.getElementById('resendLink');
+        if (resend) resend.style.display = 'none';
         closeModal('loginModal');
         var who = (currentUser && currentUser.name) ? currentUser.name : '';
         if (isAdmin) {
@@ -336,12 +705,16 @@
     }
 
     function doLogout() {
+        if (isAuthBusy()) { showToast('正在处理登录请求，请稍候再退出', 'info'); return; }
         if (supabase) {
-            supabase.auth.signOut().catch(function () {});
+            supabase.auth.signOut().catch(function () {
+                // 网络原因登出请求失败也无妨：本地状态照常清理
+            });
         }
         isAdmin = false;
         currentUser = null;
         loginMode = 'login';
+        setAuthBusy(null);
         closeModal('adminModal');
         closeModal('logModal');
         closeModal('logEditModal');
@@ -379,16 +752,22 @@
     }
 
     function initAuth() {
-        if (!supabase) return;
+        if (!supabase) { updateAuthUI(); return; }
+        startLoading();
         supabase.auth.getSession().then(function (res) {
             if (res.data && res.data.session) {
                 resolveUser(res.data.session.user).then(function () {
+                    endLoading();
                     updateAuthUI();
                 });
             } else {
+                endLoading();
                 updateAuthUI();
             }
-        }).catch(function () { updateAuthUI(); });
+        }).catch(function () {
+            endLoading();
+            updateAuthUI();
+        });
     }
 
     function openProfile() {
@@ -406,6 +785,7 @@
 
     function saveProfile() {
         if (!currentUser || !supabase) { showToast('请先登录', 'error'); return; }
+        if (isAuthBusy()) { showToast('正在处理上一次请求，请稍候…', 'info'); return; }
         var newName = document.getElementById('profileName').value.trim();
         var oldPass = document.getElementById('profileOldPass').value;
         var newPass = document.getElementById('profileNewPass').value;
@@ -418,10 +798,13 @@
             if (!oldPass) { showToast('修改密码需先填写当前密码', 'error'); return; }
             if (newPass.length < 6) { showToast('新密码至少需 6 位', 'error'); return; }
             if (newPass !== confPass) { showToast('两次新密码不一致', 'error'); return; }
+            if (newPass === oldPass) { showToast('新密码不能与当前密码相同', 'error'); return; }
         }
 
+        setAuthBusy('profile');
+
         var verify = passChange
-            ? supabase.auth.signInWithPassword({ email: email, password: oldPass })
+            ? withTimeout(supabase.auth.signInWithPassword({ email: email, password: oldPass }), 15000, '密码验证')
             : Promise.resolve({ error: null });
 
         verify.then(function (vres) {
@@ -430,31 +813,35 @@
             if (newName && newName !== currentUser.name) { updates.data = { username: newName }; }
             if (newPass) { updates.password = newPass; }
             if (Object.keys(updates).length === 0) {
+                setAuthBusy(null);
                 showToast('没有需要修改的内容', 'info');
-                return Promise.resolve(null);
+                return null;
             }
-            return supabase.auth.updateUser(updates);
+            return withTimeout(supabase.auth.updateUser(updates), 20000, '资料更新');
         }).then(function (res) {
+            if (res === null) return;   // 本地提示已发过
             if (res && res.error) { throw new Error(res.error.message); }
-            if (res === null) {
+            return supabase.auth.getUser().then(function (gres) {
+                if (gres && gres.data && gres.data.user) {
+                    var u = gres.data.user;
+                    currentUser.name = (u.user_metadata && u.user_metadata.username) || u.email;
+                }
+                setAuthBusy(null);
+                updateAuthUI();
+                document.getElementById('profileOldPass').value = '';
+                document.getElementById('profileNewPass').value = '';
+                document.getElementById('profileConfirmPass').value = '';
                 closeModal('profileModal');
-                return;
-            }
-            return supabase.auth.getUser();
-        }).then(function (gres) {
-            if (gres && gres.data && gres.data.user) {
-                var u = gres.data.user;
-                currentUser.name = (u.user_metadata && u.user_metadata.username) || u.email;
-                isAdmin = (currentUser.role === 'admin');
-            }
-            updateAuthUI();
-            document.getElementById('profileOldPass').value = '';
-            document.getElementById('profileNewPass').value = '';
-            document.getElementById('profileConfirmPass').value = '';
-            closeModal('profileModal');
-            showToast('资料已更新', 'success');
+                showToast('资料已更新', 'success');
+            });
         }).catch(function (e) {
-            showToast((e && e.message) ? e.message : '更新失败', 'error');
+            setAuthBusy(null);
+            var msg = authErrMsg(e);
+            // 改密码导致旧会话失效时引导重新登录
+            if (/session|logged in|401/i.test((e && e.message) || '')) {
+                msg = '会话已过期，请重新登录后再试';
+            }
+            showToast(msg, 'error');
         });
     }
 
@@ -472,13 +859,15 @@
             var item = navItems[i];
             var typeLabel = item.type === 'url' ? 'URL' : 'PATH';
             var typeClass = item.type === 'url' ? 'card-badge-url' : 'card-badge-path';
+            var catLabel = CATEGORY_NAMES[itemCategory(item)];
             html += '<div class="admin-item">' +
                 '<div class="admin-item-info">' +
                     '<div style="display:flex;align-items:center;gap:6px">' +
                         '<div class="admin-item-name">' + escHtml(item.name) + '</div>' +
                         '<span class="card-badge ' + typeClass + '" style="font-size:9px;padding:1px 5px">' + typeLabel + '</span>' +
+                        '<span class="card-badge card-badge-path" style="font-size:9px;padding:1px 5px">' + escHtml(catLabel) + '</span>' +
                     '</div>' +
-                    '<div class="admin-item-path">' + escHtml(item.path) + '</div>' +
+                    '<div class="admin-item-path">' + escHtml(item.path) + ' · 排序 ' + (item.sort || 0) + '</div>' +
                 '</div>' +
                 '<div class="admin-item-actions">' +
                     '<button class="btn btn-sm btn-secondary" onclick="window.NavHub.openEdit(' + i + ')">编辑</button>' +
@@ -492,13 +881,30 @@
     // ============================================================
     // 13. Nav CRUD
     // ============================================================
+    // ============================================================
+    // 10b. 分类选择（添加/编辑弹窗中的分段按钮）
+    // ============================================================
+    window.setCategory = function (cat) {
+        if (CATEGORIES.indexOf(cat) === -1) return;
+        currentCategory = cat;
+        var seg = document.getElementById('categorySeg');
+        var btns = seg.querySelectorAll('.toggle-seg-btn');
+        for (var i = 0; i < btns.length; i++) {
+            var btn = btns[i];
+            if (btn.getAttribute('data-cat') === cat) btn.classList.add('active');
+            else btn.classList.remove('active');
+        }
+    };
+
     function openAddModal() {
         document.getElementById('itemModalTitle').textContent = '添加导航项';
         document.getElementById('itemName').value = '';
         document.getElementById('itemPath').value = '';
+        document.getElementById('itemSort').value = '';
         document.getElementById('editIndex').value = '-1';
         document.getElementById('itemSaveBtn').textContent = '添加';
         window.setPathType('path');
+        window.setCategory('internal');
         openModal('itemModal');
         setTimeout(function () {
             var el = document.getElementById('itemName');
@@ -512,9 +918,11 @@
         document.getElementById('itemModalTitle').textContent = '编辑导航项';
         document.getElementById('itemName').value = item.name || '';
         document.getElementById('itemPath').value = item.path || '';
+        document.getElementById('itemSort').value = (item.sort != null) ? item.sort : '';
         document.getElementById('editIndex').value = index;
         document.getElementById('itemSaveBtn').textContent = '保存';
         window.setPathType(item.type === 'url' ? 'url' : 'path');
+        window.setCategory(itemCategory(item));
         openModal('itemModal');
         setTimeout(function () {
             var el = document.getElementById('itemName');
@@ -524,26 +932,36 @@
 
     function reloadNavFromDB() {
         if (!supabase) { renderGrid(); renderAdminList(); return; }
+        startLoading();
         supabase.from(NAV_TABLE).select('*').order('sort', { ascending: true })
             .then(function (res) {
+                endLoading();
                 if (!res.error && Array.isArray(res.data)) { navItems = res.data; }
                 renderGrid();
                 renderAdminList();
             })
-            .catch(function () { renderGrid(); renderAdminList(); });
+            .catch(function () {
+                endLoading();
+                renderGrid();
+                renderAdminList();
+                showToast('导航数据刷新失败，请稍后重试', 'error');
+            });
     }
 
     function saveItem() {
         var name = document.getElementById('itemName').value.trim();
         var path = document.getElementById('itemPath').value.trim();
+        var sortRaw = document.getElementById('itemSort').value.trim();
         if (!name) { showToast('请输入名称', 'error'); return; }
         if (!path) { showToast('请输入路径', 'error'); return; }
+        var sort = (sortRaw === '') ? null : parseInt(sortRaw, 10);
+        if (sort !== null && !(sort >= 0)) { showToast('排序值需为非负整数', 'error'); return; }
 
         var editIndex = parseInt(document.getElementById('editIndex').value, 10);
 
         // Supabase 不可用时的本地回退
         if (!supabase) {
-            var localItem = { name: name, path: path, type: currentPathType };
+            var localItem = { name: name, path: path, type: currentPathType, category: currentCategory, sort: sort || 0 };
             if (editIndex === -1) { navItems.push(localItem); showToast('添加成功', 'success'); }
             else { navItems[editIndex] = localItem; showToast('修改成功', 'success'); }
             closeModal('itemModal');
@@ -553,26 +971,38 @@
         }
 
         if (editIndex === -1) {
-            var sort = navItems.length || 0;
-            supabase.from(NAV_TABLE).insert({ name: name, path: path, type: currentPathType, sort: sort })
+            var effectiveSort = (sort !== null) ? sort : (navItems.length || 0);
+            startLoading();
+            supabase.from(NAV_TABLE).insert({ name: name, path: path, type: currentPathType, category: currentCategory, sort: effectiveSort })
                 .then(function (res) {
+                    endLoading();
                     if (res.error) { showToast('添加失败：' + res.error.message, 'error'); return; }
                     closeModal('itemModal');
                     showToast('添加成功', 'success');
                     reloadNavFromDB();
                 })
-                .catch(function (e) { showToast('添加失败：' + (e.message || e), 'error'); });
+                .catch(function (e) {
+                    endLoading();
+                    showToast('添加失败：' + (e.message || e), 'error');
+                });
         } else {
             var item = navItems[editIndex];
             if (!item || item.id === undefined) { showToast('该记录无效，请刷新后重试', 'error'); return; }
-            supabase.from(NAV_TABLE).update({ name: name, path: path, type: currentPathType }).eq('id', item.id)
+            var updates = { name: name, path: path, type: currentPathType, category: currentCategory };
+            if (sort !== null) updates.sort = sort;
+            startLoading();
+            supabase.from(NAV_TABLE).update(updates).eq('id', item.id)
                 .then(function (res) {
+                    endLoading();
                     if (res.error) { showToast('修改失败：' + res.error.message, 'error'); return; }
                     closeModal('itemModal');
                     showToast('修改成功', 'success');
                     reloadNavFromDB();
                 })
-                .catch(function (e) { showToast('修改失败：' + (e.message || e), 'error'); });
+                .catch(function (e) {
+                    endLoading();
+                    showToast('修改失败：' + (e.message || e), 'error');
+                });
         }
     }
 
@@ -589,13 +1019,116 @@
             showToast('已删除「' + name + '」', 'info');
             return;
         }
+        startLoading();
         supabase.from(NAV_TABLE).delete().eq('id', item.id)
             .then(function (res) {
+                endLoading();
                 if (res.error) { showToast('删除失败：' + res.error.message, 'error'); return; }
                 showToast('已删除「' + name + '」', 'info');
                 reloadNavFromDB();
             })
-            .catch(function (e) { showToast('删除失败：' + (e.message || e), 'error'); });
+            .catch(function (e) {
+                endLoading();
+                showToast('删除失败：' + (e.message || e), 'error');
+            });
+    }
+
+    // ============================================================
+    // 13b. 导航排序（管理员）
+    // ============================================================
+    var sortCategory = 'internal';
+
+    window.openSortModal = function () {
+        if (!isAdmin) return;
+        switchSortCat('internal');
+        openModal('sortModal');
+    };
+
+    window.switchSortCat = function (cat) {
+        if (CATEGORIES.indexOf(cat) === -1) return;
+        sortCategory = cat;
+        var seg = document.getElementById('sortCatSeg');
+        var btns = seg.querySelectorAll('.toggle-seg-btn');
+        for (var i = 0; i < btns.length; i++) {
+            var btn = btns[i];
+            if (btn.getAttribute('data-cat') === cat) btn.classList.add('active');
+            else btn.classList.remove('active');
+        }
+        renderSortList();
+    };
+
+    function renderSortList() {
+        var container = document.getElementById('sortList');
+        var items = navItems
+            .filter(function (it) { return itemCategory(it) === sortCategory; })
+            .sort(function (a, b) { return (a.sort || 0) - (b.sort || 0); });
+
+        if (!items.length) {
+            container.innerHTML = '<div style="text-align:center;padding:32px 0;color:var(--text-tertiary);">该分类暂无导航项</div>';
+            return;
+        }
+        var html = '';
+        items.forEach(function (it, idx) {
+            var globalIndex = navItems.indexOf(it);
+            html += '<div class="sort-item">' +
+                '<span class="sort-item-order">' + (idx + 1) + '</span>' +
+                '<div class="sort-item-info">' +
+                    '<div class="sort-item-name">' + escHtml(it.name) + '</div>' +
+                    '<div class="sort-item-path">' + escHtml(it.path) + '</div>' +
+                '</div>' +
+                '<div class="sort-item-actions">' +
+                    '<button class="btn btn-sm btn-secondary" onclick="window.NavHub.moveItem(' + globalIndex + ',-1)"' + (idx === 0 ? ' disabled' : '') + '>↑</button>' +
+                    '<button class="btn btn-sm btn-secondary" onclick="window.NavHub.moveItem(' + globalIndex + ',1)"' + (idx === items.length - 1 ? ' disabled' : '') + '>↓</button>' +
+                '</div>' +
+            '</div>';
+        });
+        container.innerHTML = html;
+    }
+
+    // dir: -1 上移 / 1 下移。交换同分类内相邻两项的 sort 值
+    function moveItem(index, dir) {
+        if (!isAdmin) return;
+        var item = navItems[index];
+        if (!item) return;
+        var cat = itemCategory(item);
+        var siblings = navItems
+            .filter(function (it) { return itemCategory(it) === cat; })
+            .sort(function (a, b) { return (a.sort || 0) - (b.sort || 0); });
+        var pos = siblings.indexOf(item);
+        var target = siblings[pos + dir];
+        if (!target) return;
+
+        var mySort = (item.sort != null) ? item.sort : pos;
+        var otherSort = (target.sort != null) ? target.sort : (pos + dir);
+        if (mySort === otherSort) otherSort = mySort + dir;   // 兜底：sort 值撞车时错开
+
+        startLoading();
+        supabase.from(NAV_TABLE).update({ sort: otherSort }).eq('id', item.id)
+            .then(function (res) {
+                if (res.error) throw res.error;
+                return supabase.from(NAV_TABLE).update({ sort: mySort }).eq('id', target.id);
+            })
+            .then(function (res) {
+                endLoading();
+                if (res.error) { showToast('排序失败：' + res.error.message, 'error'); reloadNavFromDB(); return; }
+                item.sort = otherSort;
+                target.sort = mySort;
+                renderSortList();
+                renderGrid();
+                renderAdminList();
+            })
+            .catch(function (e) {
+                endLoading();
+                showToast('排序失败：' + svcErr(e), 'error');
+                reloadNavFromDB();
+            });
+    }
+
+    // 简易错误提示（main.js 无 svcErrMsg，用简版）
+    function svcErr(e) {
+        var msg = (e && e.message) ? e.message : String(e || '未知错误');
+        if (/Failed to fetch|NetworkError|network/i.test(msg)) return '网络连接失败，请检查网络后重试';
+        return msg;
     }
 
     // ============================================================
@@ -617,17 +1150,23 @@
                     name: it.name || '',
                     path: it.path || '',
                     type: (it.type === 'url' ? 'url' : 'path'),
+                    category: (CATEGORIES.indexOf(it.category) !== -1 ? it.category : (it.type === 'url' ? 'external' : 'internal')),
                     sort: (it.sort != null ? it.sort : i)
                 };
             });
             if (!rows.length) { showToast('导入内容为空', 'info'); return; }
+            startLoading();
             supabase.from(NAV_TABLE).insert(rows)
                 .then(function (res) {
+                    endLoading();
                     if (res.error) { showToast('导入失败：' + res.error.message, 'error'); return; }
                     showToast('导入成功 ' + rows.length + ' 项', 'success');
                     reloadNavFromDB();
                 })
-                .catch(function (err) { showToast('导入失败：' + (err.message || err), 'error'); });
+                .catch(function (err) {
+                    endLoading();
+                    showToast('导入失败：' + (err.message || err), 'error');
+                });
         });
     }
 
@@ -830,7 +1369,10 @@
         openEdit: openEdit,
         deleteItem: deleteItem,
         openLogEdit: openLogEdit,
-        deleteLog: deleteLog
+        deleteLog: deleteLog,
+        moveItem: moveItem,
+        openDrive: openDrive,
+        openNotes: openNotes
     };
 
     // Expose for inline onclick
@@ -841,6 +1383,8 @@
     window.saveProfile = saveProfile;
     window.openAddModal = openAddModal;
     window.saveItem = saveItem;
+    window.setCategory = window.setCategory;
+    window.openSortModal = openSortModal;
     window.exportConfig = exportConfig;
     window.triggerImport = triggerImport;
     window.importConfig = importConfig;
@@ -857,6 +1401,8 @@
     // ============================================================
     // 20. Init
     // ============================================================
+    // 初始加载指示由 initAuth() 与 loadNavItems() 各自负责
+    // （引用计数保证并发请求全部结束后进度条才消失）
     initTheme();
     bindModals();
     initAuth();

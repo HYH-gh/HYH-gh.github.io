@@ -1030,6 +1030,68 @@ textarea::placeholder { color: var(--text-tertiary); }
 }
 
 /* ============================
+   分类分区
+   ============================ */
+.category-section { margin-bottom: 40px; }
+.category-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 16px;
+    padding-left: 10px;
+    border-left: 3px solid var(--accent);
+    line-height: 1.3;
+}
+
+/* 特殊工具卡片（云盘） */
+.card-special { border: 1px dashed var(--accent-border); }
+.card-special .card-icon { color: var(--accent); }
+
+/* ============================
+   排序管理列表
+   ============================ */
+.sort-toolbar { margin-bottom: 14px; }
+.sort-list {
+    max-height: 420px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.sort-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--accent-border);
+    border-radius: var(--radius);
+    background: var(--surface, rgba(255,255,255,0.5));
+}
+.sort-item-order {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--accent-bg);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.sort-item-info { flex: 1; min-width: 0; }
+.sort-item-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.sort-item-path {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.sort-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+/* ============================
    Toast
    ============================ */
 .toast-stack {
@@ -1069,6 +1131,116 @@ textarea::placeholder { color: var(--text-tertiary); }
     background: var(--accent-bg);
     color: var(--accent);
     border-color: var(--accent-border);
+}
+
+/* ============================
+   Auth inline message（登录弹窗内的就地提示）
+   ============================ */
+.auth-inline-msg {
+    font-size: 12.5px;
+    line-height: 1.5;
+    padding: 9px 12px;
+    border-radius: var(--radius);
+    border: 1px solid;
+    margin: 2px 0 4px;
+    word-break: break-all;
+    animation: fadeIn 0.25s ease;
+}
+.auth-msg-error {
+    background: var(--danger-bg);
+    color: var(--danger);
+    border-color: rgba(196,43,28,0.25);
+}
+.auth-msg-success {
+    background: var(--success-bg);
+    color: var(--success);
+    border-color: rgba(15,123,15,0.25);
+}
+.auth-msg-info {
+    background: var(--accent-bg);
+    color: var(--accent);
+    border-color: var(--accent-border);
+}
+
+.btn[disabled] {
+    opacity: 0.55;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* ============================
+   Logo 返回主页链接
+   ============================ */
+.logo-link {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+    border-radius: 8px;
+    padding: 2px;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.logo-link:hover { opacity: 0.75; }
+.logo-link:active { transform: scale(0.94); }
+
+/* ============================
+   全局加载进度条（顶部，不确定进度动画）
+   ============================ */
+.global-loading-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    z-index: 3000;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    background: transparent;
+    overflow: hidden;
+}
+.global-loading-bar.active {
+    opacity: 1;
+}
+.global-loading-bar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 40%;
+    border-radius: 3px;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    animation: loadingSlide 1.1s ease-in-out infinite;
+}
+@keyframes loadingSlide {
+    0%   { left: -40%; }
+    60%  { left: 100%; }
+    100% { left: 100%; }
+}
+
+/* 导航网格加载占位 */
+.nav-loading {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 64px 0;
+    color: var(--text-tertiary);
+    font-size: 14px;
+}
+.nav-loading-spinner {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 3px solid var(--accent-border);
+    border-top-color: var(--accent);
+    animation: loadingSpin 0.8s linear infinite;
+}
+@keyframes loadingSpin {
+    to { transform: rotate(360deg); }
 }
 
 /* ============================

@@ -11,12 +11,14 @@
 
     <header class="header">
         <div class="header-left">
-            <svg class="logo-icon" viewBox="0 0 32 32" width="28" height="28">
-                <rect x="2" y="2" width="12" height="12" rx="3" fill="var(--accent)"/>
-                <rect x="18" y="2" width="12" height="12" rx="3" fill="var(--accent)" opacity="0.6"/>
-                <rect x="2" y="18" width="12" height="12" rx="3" fill="var(--accent)" opacity="0.6"/>
-                <rect x="18" y="18" width="12" height="12" rx="3" fill="var(--accent)" opacity="0.35"/>
-            </svg>
+            <a class="logo-link" href="index.html" title="返回主页">
+                <svg class="logo-icon" viewBox="0 0 32 32" width="28" height="28">
+                    <rect x="2" y="2" width="12" height="12" rx="3" fill="var(--accent)"/>
+                    <rect x="18" y="2" width="12" height="12" rx="3" fill="var(--accent)" opacity="0.6"/>
+                    <rect x="2" y="18" width="12" height="12" rx="3" fill="var(--accent)" opacity="0.6"/>
+                    <rect x="18" y="18" width="12" height="12" rx="3" fill="var(--accent)" opacity="0.35"/>
+                </svg>
+            </a>
             <span class="header-title">导航中心</span>
         </div>
         <div class="header-right">
@@ -37,7 +39,6 @@
                     <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
             </button>
-            <a class="header-btn" id="storageBtn" href="drive.html" style="display:none">云盘</a>
             <button class="header-btn" id="profileBtn" style="display:none" onclick="openProfile()">个人中心</button>
             <button class="header-btn" id="adminBtn" onclick="toggleLogin()">管理员登录</button>
         </div>
@@ -48,7 +49,18 @@
             <h2 class="hero-title">快速导航</h2>
             <p class="hero-sub">选择项目开始探索</p>
         </section>
-        <div class="nav-grid" id="navGrid"></div>
+        <section class="category-section" id="catSectionInternal">
+            <h3 class="category-title">站内工具</h3>
+            <div class="nav-grid" id="navGridInternal"></div>
+        </section>
+        <section class="category-section" id="catSectionExternal">
+            <h3 class="category-title">外部工具</h3>
+            <div class="nav-grid" id="navGridExternal"></div>
+        </section>
+        <section class="category-section" id="catSectionSpecial">
+            <h3 class="category-title">特殊工具</h3>
+            <div class="nav-grid" id="navGridSpecial"></div>
+        </section>
     </main>
 
     <!-- Login / Register Modal -->
@@ -79,6 +91,7 @@
                 <input type="password" id="loginPass2" placeholder="请再次输入密码" autocomplete="new-password" oninput="clearAuthMsg()" onkeydown="if(event.key==='Enter') dispatchAuthAction()">
             </div>
             <div class="auth-inline-msg" id="loginMsg" style="display:none"></div>
+            <button class="login-switch-link" id="resendLink" type="button" style="display:none" onclick="resendConfirmation()">重新发送验证邮件</button>
             <button class="login-switch-link" id="loginSwitchLink" type="button" onclick="switchLoginMode()">没有账号？去注册</button>
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeModal('loginModal')">取消</button>
@@ -109,6 +122,10 @@
                 <button class="btn btn-secondary" onclick="triggerImport()">
                     <svg viewBox="0 0 24 24" width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="17" y1="8" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="3" x2="7" y2="8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                     导入
+                </button>
+                <button class="btn btn-secondary" onclick="openSortModal()">
+                    <svg viewBox="0 0 24 24" width="16" height="16"><line x1="3" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="12" x2="15" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="18" x2="9" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    排序
                 </button>
                 <button class="btn btn-secondary" onclick="openLogModal()">
                     <svg viewBox="0 0 24 24" width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="7" y1="10" x2="12" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="15" x2="17" y2="10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -151,17 +168,58 @@
                 <input type="text" id="itemPath" placeholder="例如：poetry/index.html 或 https://example.com">
             </div>
             <div class="form-group">
+                <label>所属分类</label>
+                <div class="toggle-seg" id="categorySeg">
+                    <button class="toggle-seg-btn" data-cat="internal" onclick="setCategory('internal')">站内工具</button>
+                    <button class="toggle-seg-btn" data-cat="external" onclick="setCategory('external')">外部工具</button>
+                    <button class="toggle-seg-btn" data-cat="special" onclick="setCategory('special')">特殊工具</button>
+                </div>
+            </div>
+            <div class="form-group">
                 <label>导航类型</label>
                 <div class="toggle-seg" id="pathTypeSeg">
                     <button class="toggle-seg-btn active" data-type="path" onclick="setPathType('path')">相对路径</button>
                     <button class="toggle-seg-btn" data-type="url" onclick="setPathType('url')">外部 URL</button>
                 </div>
             </div>
+            <div class="form-group">
+                <label>排序值（越小越靠前）</label>
+                <input type="number" id="itemSort" placeholder="例如：0" min="0" step="1">
+            </div>
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeModal('itemModal')">取消</button>
                 <button class="btn btn-accent" id="itemSaveBtn" onclick="saveItem()">保存</button>
             </div>
             <input type="hidden" id="editIndex" value="-1">
+        </div>
+    </div>
+
+    <!-- Sort Management Modal -->
+    <div class="modal-overlay" id="sortModal">
+        <div class="modal modal-wide">
+            <div class="modal-icon">
+                <svg viewBox="0 0 24 24" width="28" height="28">
+                    <line x1="3" y1="6" x2="21" y2="6" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="3" y1="12" x2="15" y2="12" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="3" y1="18" x2="9" y2="18" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <div class="modal-title">导航排序</div>
+            <div class="sort-toolbar">
+                <div class="toggle-seg" id="sortCatSeg">
+                    <button class="toggle-seg-btn active" data-cat="internal" onclick="switchSortCat('internal')">站内工具</button>
+                    <button class="toggle-seg-btn" data-cat="external" onclick="switchSortCat('external')">外部工具</button>
+                    <button class="toggle-seg-btn" data-cat="special" onclick="switchSortCat('special')">特殊工具</button>
+                </div>
+            </div>
+            <div class="sort-list" id="sortList"></div>
+            <div class="admin-hint">
+                <svg viewBox="0 0 24 24" width="14" height="14" style="flex-shrink:0"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="0.5" fill="currentColor"/></svg>
+                <span>使用上下按钮调整顺序，改动会实时保存到数据库。</span>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('sortModal')">关闭</button>
+            </div>
         </div>
     </div>
 
